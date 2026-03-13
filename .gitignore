@@ -2,3 +2,8 @@
 *.log
 *.aux
 
+
+
+# Added by cargo
+
+/target
