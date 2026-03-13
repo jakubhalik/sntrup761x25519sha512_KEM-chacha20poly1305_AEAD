@@ -658,7 +658,11 @@ impl Curve25519DiffieHellman {
         self.field_element_multiply(&temporary_b, &temporary_a)
     }
 
-    fn conditional_swap(&self, swap_flag: u64, first_point: &mut [u64; 5], second_point: &mut [u64; 5]) {
+    fn conditional_swap(
+        &self, swap_flag: u64, 
+        first_point: &mut [u64; 5], 
+        second_point: &mut [u64; 5]
+    ) {
         dprintln!(self.debug, "Curve25519DiffieHellman::conditional_swap called with swap_flag: {}", swap_flag);
         let mask_value = 0u64.wrapping_sub(swap_flag);
         
@@ -821,12 +825,15 @@ impl SecureHashAlgorithm512 {
         }
         
         for word_index in 16..80 {
+
             let sigma_0 = message_schedule[word_index - 15].rotate_right(1)
                 ^ message_schedule[word_index - 15].rotate_right(8)
                 ^ (message_schedule[word_index - 15] >> 7);
+
             let sigma_1 = message_schedule[word_index - 2].rotate_right(19)
                 ^ message_schedule[word_index - 2].rotate_right(61)
                 ^ (message_schedule[word_index - 2] >> 6);
+
             message_schedule[word_index] = message_schedule[word_index - 16]
                 .wrapping_add(sigma_0)
                 .wrapping_add(message_schedule[word_index - 7])
@@ -899,10 +906,13 @@ impl SecureHashAlgorithm512 {
         let mut data_offset: usize = 0;
         
         if self.buffer_length > 0 {
+
             let space_remaining = 128 - self.buffer_length;
             let copy_amount = std::cmp::min(space_remaining, data.len());
+
             self.buffer[self.buffer_length..self.buffer_length + copy_amount]
                 .copy_from_slice(&data[..copy_amount]);
+
             self.buffer_length += copy_amount;
             data_offset = copy_amount;
             
@@ -911,6 +921,7 @@ impl SecureHashAlgorithm512 {
                 self.process_block(&block);
                 self.buffer_length = 0;
             }
+
         }
         
         while data_offset + 128 <= data.len() {
@@ -1077,22 +1088,50 @@ impl Sntrup761X25519Sha512KeyEncapsulationMechanism {
             return None;
         }
         
-        let inverse_f_zero = FiniteFieldElement::new(f_polynomial[0], self.debug).reciprocal(self.debug);
-        let mut result_coefficients = Vec::with_capacity(SNTRUP761_PRIME_DEGREE);
+        let inverse_f_zero = 
+            FiniteFieldElement::new(f_polynomial[0], self.debug)
+                .reciprocal(self.debug)
+        ;
+        let mut result_coefficients = 
+            Vec::with_capacity(SNTRUP761_PRIME_DEGREE);
         
         for coefficient_index in 0..SNTRUP761_PRIME_DEGREE {
-            result_coefficients.push(FiniteFieldElement::new(v_polynomial[SNTRUP761_PRIME_DEGREE - 1 - coefficient_index], self.debug) * inverse_f_zero.clone());
+            result_coefficients.push(
+                FiniteFieldElement::new(
+                    v_polynomial[
+                        SNTRUP761_PRIME_DEGREE - 1 - coefficient_index
+                    ], self.debug
+                ) * inverse_f_zero.clone()
+            );
         }
         
-        Some(PolynomialRingElement::from_coefficients(result_coefficients, self.debug))
+        Some(PolynomialRingElement::from_coefficients(
+            result_coefficients, 
+            self.debug
+        ))
     }
 
-    pub fn generate_keypair(&self, random_bytes: &[u8]) -> Sntrup761KeyPair {
-        dprintln!(self.debug, "Sntrup761X25519Sha512KeyEncapsulationMechanism::generate_keypair called with {} random bytes", random_bytes.len());
+    pub fn generate_keypair(
+        &self, 
+        random_bytes: &[u8]
+    ) -> Sntrup761KeyPair {
+        dprintln!(
+            self.debug, 
+            "Sntrup761X25519Sha512KeyEncapsulationMechanism::generate_keypair called with {} random bytes", 
+            random_bytes.len()
+        );
         
-        let small_f_bytes = &random_bytes[0..SNTRUP761_PRIME_DEGREE];
-        let small_g_bytes = &random_bytes[SNTRUP761_PRIME_DEGREE..2 * SNTRUP761_PRIME_DEGREE];
-        let x25519_private = &random_bytes[2 * SNTRUP761_PRIME_DEGREE..2 * SNTRUP761_PRIME_DEGREE + X25519_SCALAR_SIZE];
+        let small_f_bytes = 
+            &random_bytes[0..SNTRUP761_PRIME_DEGREE];
+        let small_g_bytes = 
+            &random_bytes[SNTRUP761_PRIME_DEGREE..2 * SNTRUP761_PRIME_DEGREE];
+        let x25519_private = 
+            &random_bytes[
+                2 * SNTRUP761_PRIME_DEGREE..2 * 
+                SNTRUP761_PRIME_DEGREE + 
+                X25519_SCALAR_SIZE
+            ]
+        ;
         
         let small_f = SmallPolynomial::generate_random(small_f_bytes, self.debug);
         let small_g = SmallPolynomial::generate_random(small_g_bytes, self.debug);
@@ -1103,13 +1142,22 @@ impl Sntrup761X25519Sha512KeyEncapsulationMechanism {
             .expect("Failed to invert polynomial f");
         
         let three = FiniteFieldElement::new(3, self.debug);
-        let mut three_times_g_coefficients = Vec::with_capacity(SNTRUP761_PRIME_DEGREE);
+
+        let mut three_times_g_coefficients = 
+            Vec::with_capacity(SNTRUP761_PRIME_DEGREE);
+
         for coefficient in &ring_element_g.coefficients {
-            three_times_g_coefficients.push(coefficient.clone() * three.clone());
+            three_times_g_coefficients.push(
+                coefficient.clone() * three.clone()
+            );
         }
-        let three_times_g = PolynomialRingElement::from_coefficients(three_times_g_coefficients, self.debug);
+        let three_times_g = 
+            PolynomialRingElement::from_coefficients(
+                three_times_g_coefficients, self.debug
+            );
         
-        let public_polynomial_h = three_times_g.multiply(&inverse_f, self.debug);
+        let public_polynomial_h = 
+            three_times_g.multiply(&inverse_f, self.debug);
         
         let sntrup_public = public_polynomial_h.encode(self.debug);
         let sntrup_secret_f = small_f.encode(self.debug);
@@ -1137,8 +1185,14 @@ impl Sntrup761X25519Sha512KeyEncapsulationMechanism {
         }
     }
 
-    pub fn encapsulate(&self, public_key: &[u8], random_bytes: &[u8]) -> (Vec<u8>, [u8; SHARED_SECRET_SIZE]) {
-        dprintln!(self.debug, "Sntrup761X25519Sha512KeyEncapsulationMechanism::encapsulate called");
+    pub fn encapsulate(
+        &self, public_key: &[u8], 
+        random_bytes: &[u8]
+    ) -> (Vec<u8>, [u8; SHARED_SECRET_SIZE]) {
+        dprintln!(
+            self.debug, 
+            "Sntrup761X25519Sha512KeyEncapsulationMechanism::encapsulate called"
+        );
         
         let sntrup_public_bytes = &public_key[0..SNTRUP761_RING_ELEMENT_BYTES];
         let x25519_public_bytes = &public_key[SNTRUP761_RING_ELEMENT_BYTES..PUBLIC_KEY_SIZE];
@@ -1157,7 +1211,8 @@ impl Sntrup761X25519Sha512KeyEncapsulationMechanism {
         let encoded_small_r = small_r.encode(self.debug);
         
         let curve25519_engine = Curve25519DiffieHellman::new(self.debug);
-        let x25519_ephemeral_private = &random_bytes[SNTRUP761_PRIME_DEGREE..SNTRUP761_PRIME_DEGREE + X25519_SCALAR_SIZE];
+        let x25519_ephemeral_private = 
+            &random_bytes[SNTRUP761_PRIME_DEGREE..SNTRUP761_PRIME_DEGREE + X25519_SCALAR_SIZE];
         let mut x25519_ephemeral_scalar = [0u8; X25519_SCALAR_SIZE];
         x25519_ephemeral_scalar.copy_from_slice(x25519_ephemeral_private);
         
@@ -1165,7 +1220,13 @@ impl Sntrup761X25519Sha512KeyEncapsulationMechanism {
         
         let mut x25519_recipient_public = [0u8; X25519_POINT_SIZE];
         x25519_recipient_public.copy_from_slice(x25519_public_bytes);
-        let x25519_shared = curve25519_engine.scalar_multiply(&x25519_ephemeral_scalar, &x25519_recipient_public);
+
+        let x25519_shared = 
+            curve25519_engine.scalar_multiply(
+                &x25519_ephemeral_scalar, 
+                &x25519_recipient_public
+            )
+        ;
         
         let mut combined_ciphertext = Vec::with_capacity(CIPHERTEXT_SIZE);
         combined_ciphertext.extend_from_slice(&encoded_rounded);
@@ -1186,26 +1247,70 @@ impl Sntrup761X25519Sha512KeyEncapsulationMechanism {
         (combined_ciphertext, shared_secret)
     }
 
-    pub fn decapsulate(&self, secret_key: &[u8], ciphertext: &[u8]) -> [u8; SHARED_SECRET_SIZE] {
+    pub fn decapsulate(
+        &self, secret_key: &[u8], 
+        ciphertext: &[u8]
+    ) -> [u8; SHARED_SECRET_SIZE] {
         dprintln!(self.debug, "Sntrup761X25519Sha512KeyEncapsulationMechanism::decapsulate called");
         
         let secret_f_bytes = 
             &secret_key[0..SNTRUP761_SMALL_POLYNOMIAL_BYTES];
 
         let _public_h_bytes = 
-            &secret_key[SNTRUP761_SMALL_POLYNOMIAL_BYTES..SNTRUP761_SMALL_POLYNOMIAL_BYTES + SNTRUP761_RING_ELEMENT_BYTES];
+            &secret_key[
+                SNTRUP761_SMALL_POLYNOMIAL_BYTES..SNTRUP761_SMALL_POLYNOMIAL_BYTES
+                +
+                SNTRUP761_RING_ELEMENT_BYTES
+            ];
 
         let _secret_g_inverse_bytes = 
-            &secret_key[SNTRUP761_SMALL_POLYNOMIAL_BYTES + SNTRUP761_RING_ELEMENT_BYTES..SNTRUP761_SMALL_POLYNOMIAL_BYTES + SNTRUP761_RING_ELEMENT_BYTES + SNTRUP761_SMALL_POLYNOMIAL_BYTES];
+            &secret_key[
+                SNTRUP761_SMALL_POLYNOMIAL_BYTES 
+                + 
+                SNTRUP761_RING_ELEMENT_BYTES..SNTRUP761_SMALL_POLYNOMIAL_BYTES 
+                + 
+                SNTRUP761_RING_ELEMENT_BYTES 
+                + 
+                SNTRUP761_SMALL_POLYNOMIAL_BYTES
+            ];
 
         let x25519_private_bytes = 
-            &secret_key[SNTRUP761_SMALL_POLYNOMIAL_BYTES + SNTRUP761_RING_ELEMENT_BYTES + SNTRUP761_SMALL_POLYNOMIAL_BYTES..SNTRUP761_SMALL_POLYNOMIAL_BYTES + SNTRUP761_RING_ELEMENT_BYTES + SNTRUP761_SMALL_POLYNOMIAL_BYTES + X25519_SCALAR_SIZE];
+            &secret_key[
+                SNTRUP761_SMALL_POLYNOMIAL_BYTES 
+                + 
+                SNTRUP761_RING_ELEMENT_BYTES 
+                + 
+                SNTRUP761_SMALL_POLYNOMIAL_BYTES..SNTRUP761_SMALL_POLYNOMIAL_BYTES 
+                + 
+                SNTRUP761_RING_ELEMENT_BYTES 
+                + 
+                SNTRUP761_SMALL_POLYNOMIAL_BYTES 
+                + 
+                X25519_SCALAR_SIZE
+            ];
 
-        let combined_public_bytes = &secret_key[SNTRUP761_SMALL_POLYNOMIAL_BYTES + SNTRUP761_RING_ELEMENT_BYTES + SNTRUP761_SMALL_POLYNOMIAL_BYTES + X25519_SCALAR_SIZE..];
+        let combined_public_bytes = 
+            &secret_key[
+                SNTRUP761_SMALL_POLYNOMIAL_BYTES 
+                + 
+                SNTRUP761_RING_ELEMENT_BYTES 
+                + 
+                SNTRUP761_SMALL_POLYNOMIAL_BYTES 
+                + 
+                X25519_SCALAR_SIZE..
+            ];
         
         let rounded_bytes = &ciphertext[0..SNTRUP761_ROUNDED_BYTES];
-        let small_r_bytes = &ciphertext[SNTRUP761_ROUNDED_BYTES..SNTRUP761_ROUNDED_BYTES + SNTRUP761_SMALL_POLYNOMIAL_BYTES];
-        let x25519_ephemeral_public_bytes = &ciphertext[SNTRUP761_ROUNDED_BYTES + SNTRUP761_SMALL_POLYNOMIAL_BYTES..CIPHERTEXT_SIZE];
+        let small_r_bytes = &ciphertext[
+            SNTRUP761_ROUNDED_BYTES..SNTRUP761_ROUNDED_BYTES 
+            + 
+            SNTRUP761_SMALL_POLYNOMIAL_BYTES
+        ];
+        let x25519_ephemeral_public_bytes = &ciphertext[
+            SNTRUP761_ROUNDED_BYTES 
+            + 
+            SNTRUP761_SMALL_POLYNOMIAL_BYTES..CIPHERTEXT_SIZE
+        ];
         
         let secret_f = SmallPolynomial::decode(secret_f_bytes, self.debug);
         let rounded_ciphertext = RoundedPolynomial::decode(rounded_bytes, self.debug);
@@ -1235,7 +1340,10 @@ impl Sntrup761X25519Sha512KeyEncapsulationMechanism {
         let mut x25519_ephemeral_public = [0u8; X25519_POINT_SIZE];
         x25519_ephemeral_public.copy_from_slice(x25519_ephemeral_public_bytes);
         
-        let x25519_shared = curve25519_engine.scalar_multiply(&x25519_private_key, &x25519_ephemeral_public);
+        let x25519_shared = curve25519_engine.scalar_multiply(
+            &x25519_private_key, 
+            &x25519_ephemeral_public
+        );
         
         let x25519_own_public = &combined_public_bytes[SNTRUP761_RING_ELEMENT_BYTES..];
         
@@ -1303,12 +1411,19 @@ mod tests {
         let debug_flag = false;
         let mut test_coefficients = Vec::with_capacity(SNTRUP761_PRIME_DEGREE);
         for index in 0..SNTRUP761_PRIME_DEGREE {
-            test_coefficients.push(FiniteFieldElement::new((index % 100) as i32 - 50, debug_flag));
+            test_coefficients.push(FiniteFieldElement::new(
+                (index % 100) as i32 - 50, debug_flag
+            ));
         }
         
-        let original_polynomial = PolynomialRingElement::from_coefficients(test_coefficients, debug_flag);
+        let original_polynomial = 
+            PolynomialRingElement::from_coefficients(
+                test_coefficients, 
+                debug_flag
+            );
         let encoded_bytes = original_polynomial.encode(debug_flag);
-        let decoded_polynomial = PolynomialRingElement::decode(&encoded_bytes, debug_flag);
+        let decoded_polynomial = 
+            PolynomialRingElement::decode(&encoded_bytes, debug_flag);
         
         for coefficient_index in 0..SNTRUP761_PRIME_DEGREE {
             assert_eq!(
@@ -1331,9 +1446,14 @@ mod tests {
             test_coefficients.push(SmallCoefficient::new(value, debug_flag));
         }
         
-        let original_polynomial = SmallPolynomial::from_coefficients(test_coefficients, debug_flag);
+        let original_polynomial = 
+            SmallPolynomial::from_coefficients(
+                test_coefficients, 
+                debug_flag
+            );
         let encoded_bytes = original_polynomial.encode(debug_flag);
-        let decoded_polynomial = SmallPolynomial::decode(&encoded_bytes, debug_flag);
+        let decoded_polynomial = 
+            SmallPolynomial::decode(&encoded_bytes, debug_flag);
         
         for coefficient_index in 0..SNTRUP761_PRIME_DEGREE {
             assert_eq!(
@@ -1419,13 +1539,15 @@ fn main() {
     }
     
     dprintln!(debug_flag, "Performing encapsulation");
-    let (ciphertext, shared_secret_sender) = key_encapsulation_mechanism.encapsulate(&keypair.public_key, &encapsulation_random_bytes);
+    let (ciphertext, shared_secret_sender) = 
+        key_encapsulation_mechanism.encapsulate(&keypair.public_key, &encapsulation_random_bytes);
     
     dprintln!(debug_flag, "Ciphertext size: {} bytes", ciphertext.len());
     dprintln!(debug_flag, "Sender shared secret: {:02x?}", &shared_secret_sender[..8]);
     
     dprintln!(debug_flag, "Performing decapsulation");
-    let shared_secret_receiver = key_encapsulation_mechanism.decapsulate(&keypair.secret_key, &ciphertext);
+    let shared_secret_receiver = 
+        key_encapsulation_mechanism.decapsulate(&keypair.secret_key, &ciphertext);
     
     dprintln!(debug_flag, "Receiver shared secret: {:02x?}", &shared_secret_receiver[..8]);
     
