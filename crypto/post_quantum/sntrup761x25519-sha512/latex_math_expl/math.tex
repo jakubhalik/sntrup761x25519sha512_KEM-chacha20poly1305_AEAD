@@ -1,0 +1,215 @@
+\documentclass{article}
+
+\usepackage{amsmath, amssymb}
+\usepackage{geometry}
+\geometry{margin=1in}
+
+\title{Mathematics of the SNTRUP761-X25519-SHA512 Hybrid Key Exchange}
+\author{}
+\date{}
+
+\begin{document}
+
+\maketitle
+
+\section{Overview}
+
+The hybrid key exchange combines:
+
+\begin{itemize}
+\item X25519 elliptic-curve Diffie--Hellman
+\item SNTRUP761 post-quantum lattice KEM
+\item SHA-512 hashing
+\end{itemize}
+
+Two shared secrets are computed independently and then combined using a cryptographic hash.
+
+\section{X25519 Key Exchange}
+
+The protocol operates over the prime field
+
+\[
+\mathbb{F}_p, \quad p = 2^{255} - 19
+\]
+
+Let \(G\) be the base point on Curve25519.
+
+\subsection{Key Generation}
+
+Each party chooses a private scalar
+
+\[
+a \in \{0,1\}^{255}
+\]
+
+and computes the public key
+
+\[
+A = aG
+\]
+
+Similarly, the other party generates
+
+\[
+b \rightarrow B = bG
+\]
+
+\subsection{Shared Secret}
+
+Both parties compute
+
+\[
+K_{x25519} = aB = abG
+\]
+
+which is identical on both sides.
+
+\section{SNTRUP761 Post-Quantum Key Encapsulation}
+
+Operations occur in the polynomial ring
+
+\[
+R = \mathbb{Z}_q[x] / (x^{761} - x - 1)
+\]
+
+with modulus
+
+\[
+q = 4591
+\]
+
+Polynomials have degree less than 761.
+
+\subsection{Key Generation}
+
+Choose small polynomials
+
+\[
+f, g \in \{-1,0,1\}^{761}
+\]
+
+Compute the modular inverse
+
+\[
+f^{-1} \pmod q
+\]
+
+The public key is
+
+\[
+h = g f^{-1} \pmod q
+\]
+
+The private key is
+
+\[
+(f,g)
+\]
+
+\subsection{Encapsulation}
+
+Choose random small polynomial
+
+\[
+r \in \{-1,0,1\}^{761}
+\]
+
+Compute ciphertext
+
+\[
+c = r h + m \pmod q
+\]
+
+where \(m\) is an encoded message polynomial.
+
+The shared secret is
+
+\[
+K_{sntrup} = H(m)
+\]
+
+\subsection{Decapsulation}
+
+Receiver computes
+
+\[
+a = f c \pmod q
+\]
+
+Recover message
+
+\[
+m = a \pmod 3
+\]
+
+Then recompute the shared secret
+
+\[
+K_{sntrup} = H(m)
+\]
+
+\section{Hybrid Combination}
+
+The two shared secrets are concatenated and hashed.
+
+Let
+
+\[
+K_1 = K_{sntrup}
+\]
+
+\[
+K_2 = K_{x25519}
+\]
+
+The final shared key is
+
+\[
+K = \text{SHA512}(K_1 \parallel K_2)
+\]
+
+\section{Handshake Summary}
+
+\subsection{Client}
+
+\begin{enumerate}
+\item Generate X25519 key pair \(a, A\)
+\item Generate SNTRUP761 key pair
+\item Send \( (A, pk_{sntrup}) \)
+\end{enumerate}
+
+\subsection{Server}
+
+\begin{enumerate}
+\item Generate \(b, B\)
+\item Encapsulate SNTRUP producing ciphertext \(c\)
+\item Compute \(K_{x25519} = bA\)
+\item Send \( (B, c) \)
+\end{enumerate}
+
+\subsection{Client}
+
+\begin{enumerate}
+\item Compute \(K_{x25519} = aB\)
+\item Decapsulate SNTRUP to obtain \(K_{sntrup}\)
+\end{enumerate}
+
+Both parties compute
+
+\[
+K = SHA512(K_{sntrup} \parallel K_{x25519})
+\]
+
+\section{Security Intuition}
+
+Security relies on two independent assumptions:
+
+\begin{itemize}
+\item Elliptic-curve discrete logarithm hardness (X25519)
+\item Lattice-based hardness (SNTRUP761)
+\end{itemize}
+
+The hybrid construction remains secure if at least one of these primitives remains secure.
+
+\end{document}
+

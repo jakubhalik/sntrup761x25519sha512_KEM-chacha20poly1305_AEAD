@@ -1,0 +1,81 @@
+\documentclass{article}
+
+\usepackage{amsmath, amssymb}
+\pagestyle{empty}
+
+\begin{document}
+
+\[
+p = 2^{255} - 19
+\]
+
+\[
+a \in \{0,1\}^{255}, \quad A = aG
+\]
+
+\[
+b \in \{0,1\}^{255}, \quad B = bG
+\]
+
+\[
+K_{x25519} = aB = abG
+\]
+
+\[
+R = \mathbb{Z}_q[x] / (x^{761} - x - 1)
+\]
+
+\[
+q = 4591
+\]
+
+\[
+f, g \in \{-1,0,1\}^{761}
+\]
+
+\[
+f^{-1} \pmod q
+\]
+
+\[
+h = g f^{-1} \pmod q
+\]
+
+\[
+r \in \{-1,0,1\}^{761}
+\]
+
+\[
+c = r h + m \pmod q
+\]
+
+\[
+K_{sntrup} = H(m)
+\]
+
+\[
+a = f c \pmod q
+\]
+
+\[
+m = a \pmod 3
+\]
+
+\[
+K_{sntrup} = H(m)
+\]
+
+\[
+K_1 = K_{sntrup}
+\]
+
+\[
+K_2 = K_{x25519}
+\]
+
+\[
+K = \mathrm{SHA512}(K_1 \parallel K_2)
+\]
+
+\end{document}
+

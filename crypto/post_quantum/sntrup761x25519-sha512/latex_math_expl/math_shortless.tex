@@ -1,0 +1,64 @@
+\documentclass{article}
+
+\usepackage{amsmath, amssymb}
+\pagestyle{empty}
+
+\begin{document}
+
+% X25519
+\[
+\text{primeField} = 2^{255} - 19
+\]
+
+\[
+\text{clientPrivateX25519} \in \{0,1\}^{255}, \quad \text{clientPublicX25519} = \text{clientPrivateX25519} \cdot G
+\]
+
+\[
+\text{serverPrivateX25519} \in \{0,1\}^{255}, \quad \text{serverPublicX25519} = \text{serverPrivateX25519} \cdot G
+\]
+
+\[
+\text{sharedSecretX25519} = \text{clientPrivateX25519} \cdot \text{serverPublicX25519} = \text{serverPrivateX25519} \cdot \text{clientPublicX25519}
+\]
+
+% SNTRUP761
+\[
+\text{polyRing} = \mathbb{Z}_{4591}[x] / (x^{761} - x - 1)
+\]
+
+\[
+\text{privatePolyF}, \text{privatePolyG} \in \{-1,0,1\}^{761}, \quad \text{inverseF} = \text{privatePolyF}^{-1} \bmod 4591
+\]
+
+\[
+\text{publicPolyH} = \text{privatePolyG} \cdot \text{inverseF} \bmod 4591
+\]
+
+\[
+\text{randomPolyR} \in \{-1,0,1\}^{761}, \quad \text{messagePolyM} \in \mathbb{Z}_3^{761}
+\]
+
+\[
+\text{ciphertextSNTRUP} = \text{randomPolyR} \cdot \text{publicPolyH} + \text{messagePolyM} \bmod 4591
+\]
+
+\[
+\text{sharedSecretSNTRUP} = H(\text{messagePolyM})
+\]
+
+\[
+\text{recoveredMessage} = (\text{privatePolyF} \cdot \text{ciphertextSNTRUP}) \bmod 4591 \bmod 3
+\]
+
+\[
+\text{sharedSecretSNTRUP} = H(\text{recoveredMessage})
+\]
+
+% Hybrid key
+\[
+\text{finalSharedKey} = \mathrm{SHA512}(\text{sharedSecretSNTRUP} \parallel \text{sharedSecretX25519})
+\]
+
+\end{document}
+
