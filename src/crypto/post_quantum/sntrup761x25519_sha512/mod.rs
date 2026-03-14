@@ -1,4 +1,5 @@
 use std::ops::{Add, Mul, Sub};
+use crate::utils::macros::dprintln;
 
 const DEBUG_ENABLED: bool = false;
 
@@ -1355,4 +1356,11 @@ impl Sntrup761X25519Sha512KeyEncapsulationMechanism {
         shared_secret
     }
 }
+
+#[cfg(feature = "e2e-tests")]
+pub mod e2e;
+
+#[cfg(test)]
+#[path = "tests.rs"]
+mod tests;
 

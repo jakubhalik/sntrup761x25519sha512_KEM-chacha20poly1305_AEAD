@@ -1,7 +1,7 @@
+use crate::crypto::post_quantum::sntrup761x25519_sha512::*;
+
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[test]
     fn test_finite_field_element_operations() {
         let debug_flag = false;
@@ -119,7 +119,8 @@ mod tests {
             *byte_value = ((byte_index * 23 + 47) % 256) as u8;
         }
         
-        let (ciphertext, shared_secret_sender) = key_encapsulation_mechanism.encapsulate(&keypair.public_key, &encapsulation_random_bytes);
+        let (ciphertext, shared_secret_sender) = 
+            key_encapsulation_mechanism.encapsulate(&keypair.public_key, &encapsulation_random_bytes);
         
         assert_eq!(ciphertext.len(), CIPHERTEXT_SIZE);
         assert_eq!(shared_secret_sender.len(), SHARED_SECRET_SIZE);

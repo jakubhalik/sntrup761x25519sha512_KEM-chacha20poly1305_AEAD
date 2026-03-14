@@ -1,3 +1,10 @@
+#[path = "crypto/mod.rs"]
+mod crypto;
+
+mod utils;
+
 fn main() {
-    println!("Hello, world!");
+    if compilation::dev_compile_args::handle_args() {
+        return;
+    }
 }
