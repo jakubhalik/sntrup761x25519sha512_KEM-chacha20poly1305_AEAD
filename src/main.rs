@@ -2,9 +2,12 @@
 mod crypto;
 
 mod utils;
+mod compilation;
 
 fn main() {
     if compilation::dev_compile_args::handle_args() {
-        return;
+        println!("compiled via dev compile args")
+    } else {
+        println!("nope")
     }
 }

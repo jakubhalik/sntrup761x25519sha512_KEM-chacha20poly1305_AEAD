@@ -1,5 +1,5 @@
 use std::ops::{Add, Mul, Sub};
-use crate::utils::macros::dprintln;
+use crate::dprintln;
 
 const DEBUG_ENABLED: bool = false;
 
@@ -24,7 +24,11 @@ const SECRET_KEY_SIZE: usize =
     PUBLIC_KEY_SIZE;
 
 const CIPHERTEXT_SIZE: usize = 
-    SNTRUP761_ROUNDED_BYTES + SNTRUP761_SMALL_POLYNOMIAL_BYTES + X25519_POINT_SIZE;
+    SNTRUP761_ROUNDED_BYTES 
+    + 
+    SNTRUP761_SMALL_POLYNOMIAL_BYTES 
+    + 
+    X25519_POINT_SIZE;
 
 fn get_least_significant_byte(value: u32) -> u8 {
     (value & 0xFF) as u8
@@ -36,8 +40,12 @@ pub struct FiniteFieldElement {
 }
 
 impl FiniteFieldElement {
-    pub fn new(input_value: i32, debug: bool) -> Self {
+    pub fn new(
+        input_value: i32, debug: bool
+    ) -> Self {
+
         dprintln!(debug, "FiniteFieldElement::new called with value: {}", input_value);
+
         let mut result = input_value % SNTRUP761_FIELD_MODULUS;
         if result > SNTRUP761_FIELD_MODULUS / 2 {
             result -= SNTRUP761_FIELD_MODULUS;
@@ -48,22 +56,38 @@ impl FiniteFieldElement {
         FiniteFieldElement { value: result }
     }
 
-    pub fn freeze(input_value: i32, debug: bool) -> Self {
+    pub fn freeze(
+        input_value: i32, debug: bool
+    ) -> Self {
+
         dprintln!(debug, "FiniteFieldElement::freeze called with value: {}", input_value);
+
         FiniteFieldElement::new(input_value, debug)
     }
 
-    pub fn reciprocal(&self, debug: bool) -> Self {
+    pub fn reciprocal(
+        &self, debug: bool
+    ) -> Self {
+
         dprintln!(debug, "FiniteFieldElement::reciprocal called for value: {}", self.value);
+
         let mut result = 1i32;
         let mut base = self.value;
         let mut exponent = SNTRUP761_FIELD_MODULUS - 2;
         
         while exponent > 0 {
             if exponent & 1 == 1 {
-                result = (result as i64 * base as i64 % SNTRUP761_FIELD_MODULUS as i64) as i32;
+                result = (
+                    result as i64 
+                    * base as i64 
+                    % SNTRUP761_FIELD_MODULUS as i64
+                ) as i32;
             }
-            base = (base as i64 * base as i64 % SNTRUP761_FIELD_MODULUS as i64) as i32;
+            base = (
+                base as i64 
+                * base as i64 
+                % SNTRUP761_FIELD_MODULUS as i64
+            ) as i32;
             exponent >>= 1;
         }
         
@@ -92,8 +116,14 @@ impl Mul for FiniteFieldElement {
     
     fn mul(self, other: Self) -> Self {
         FiniteFieldElement::freeze(
-            (self.value as i64 * other.value as i64 % SNTRUP761_FIELD_MODULUS as i64)
-                as i32, DEBUG_ENABLED
+            (
+                self.value as i64 
+                * 
+                other.value as i64 
+                % 
+                SNTRUP761_FIELD_MODULUS as i64
+            ) as i32, 
+            DEBUG_ENABLED
         )
     }
 }
@@ -104,9 +134,15 @@ pub struct SmallCoefficient {
 }
 
 impl SmallCoefficient {
-    pub fn new(input_value: i8, debug: bool) -> Self {
+    pub fn new(
+        input_value: i8, 
+        debug: bool
+    ) -> Self {
+
         dprintln!(debug, "SmallCoefficient::new called with value: {}", input_value);
+
         SmallCoefficient { value: input_value }
+
     }
 }
 
@@ -116,20 +152,33 @@ pub struct PolynomialRingElement {
 }
 
 impl PolynomialRingElement {
+
     pub fn new(debug: bool) -> Self {
+
         dprintln!(debug, "PolynomialRingElement::new called");
+
         PolynomialRingElement {
-            coefficients: vec![FiniteFieldElement::new(0, debug); SNTRUP761_PRIME_DEGREE],
+            coefficients: vec![
+                FiniteFieldElement::new(0, debug); 
+                SNTRUP761_PRIME_DEGREE
+            ],
         }
+
     }
 
-    pub fn from_coefficients(coefficient_list: Vec<FiniteFieldElement>, debug: bool) -> Self {
+    pub fn from_coefficients(
+        coefficient_list: Vec<FiniteFieldElement>, 
+        debug: bool
+    ) -> Self {
+
         dprintln!(
             debug, 
             "PolynomialRingElement::from_coefficients called with {} coefficients", 
             coefficient_list.len()
         );
+
         let mut result = PolynomialRingElement::new(debug);
+
         for (index, coefficient) in coefficient_list.iter()
             .enumerate().take(SNTRUP761_PRIME_DEGREE) {
                 result.coefficients[index] = coefficient.clone();
@@ -137,28 +186,56 @@ impl PolynomialRingElement {
         result
     }
 
-    pub fn multiply(&self, other: &PolynomialRingElement, debug: bool) -> PolynomialRingElement {
+    pub fn multiply(
+        &self, 
+        other: &PolynomialRingElement, 
+        debug: bool
+    ) -> PolynomialRingElement {
+
         dprintln!(debug, "PolynomialRingElement::multiply called");
-        let mut product = vec![FiniteFieldElement::new(0, debug); SNTRUP761_PRIME_DEGREE * 2];
+
+        let mut product = vec![
+            FiniteFieldElement::new(0, debug); 
+            SNTRUP761_PRIME_DEGREE * 2
+        ];
         
         for first_index in 0..SNTRUP761_PRIME_DEGREE {
+
             for second_index in 0..SNTRUP761_PRIME_DEGREE {
+
                 let term = 
-                    self.coefficients[first_index].clone() * 
+                    self.coefficients[first_index].clone() 
+                    * 
                     other.coefficients[second_index].clone();
+
                 product[first_index + second_index] = 
-                    product[first_index + second_index].clone() + term;
+                    product[first_index + second_index].clone() 
+                    + 
+                    term;
             }
+
         }
         
-        for reduction_index in (SNTRUP761_PRIME_DEGREE..SNTRUP761_PRIME_DEGREE * 2).rev() {
+        for reduction_index in (
+            SNTRUP761_PRIME_DEGREE..SNTRUP761_PRIME_DEGREE 
+            * 
+            2
+        ).rev() {
             let value = product[reduction_index].clone();
+
             product[reduction_index - SNTRUP761_PRIME_DEGREE] = 
-                product[reduction_index - 
-                SNTRUP761_PRIME_DEGREE].clone() + 
+                product[
+                    reduction_index 
+                    - 
+                    SNTRUP761_PRIME_DEGREE
+                ].clone() 
+                + 
                 value.clone();
+
             product[reduction_index - SNTRUP761_PRIME_DEGREE + 1] = 
-                product[reduction_index - SNTRUP761_PRIME_DEGREE + 1].clone() + value;
+                product[
+                    reduction_index - SNTRUP761_PRIME_DEGREE + 1
+                ].clone() + value;
         }
         
         product.truncate(SNTRUP761_PRIME_DEGREE);
@@ -166,7 +243,9 @@ impl PolynomialRingElement {
     }
 
     pub fn encode(&self, debug: bool) -> Vec<u8> {
+
         dprintln!(debug, "PolynomialRingElement::encode called");
+
         let mut encoded_bytes = Vec::with_capacity(SNTRUP761_RING_ELEMENT_BYTES);
         let mut accumulator: u32 = 0;
         let mut bits_in_accumulator: u32 = 0;
@@ -241,37 +320,61 @@ pub struct SmallPolynomial {
 
 impl SmallPolynomial {
     pub fn new(debug: bool) -> Self {
+
         dprintln!(debug, "SmallPolynomial::new called");
+
         SmallPolynomial {
             coefficients: vec![
                 SmallCoefficient::new(0, debug); 
                 SNTRUP761_PRIME_DEGREE
             ],
         }
+
     }
 
     pub fn from_coefficients(
-        coefficient_list: Vec<SmallCoefficient>, debug: bool
+        coefficient_list: Vec<SmallCoefficient>, 
+        debug: bool
     ) -> Self {
+
         dprintln!(debug, "SmallPolynomial::from_coefficients called");
+
         let mut result = SmallPolynomial::new(debug);
-        for (index, coefficient) in coefficient_list.iter()
-            .enumerate().take(SNTRUP761_PRIME_DEGREE) {
-                result.coefficients[index] = coefficient.clone();
+
+        for (index, coefficient) in coefficient_list
+            .iter()
+            .enumerate()
+            .take(SNTRUP761_PRIME_DEGREE) {
+                result.coefficients[index] = 
+                    coefficient.clone();
             }
         result
     }
 
-    pub fn to_ring_element(&self, debug: bool) -> PolynomialRingElement {
+    pub fn to_ring_element(
+        &self, 
+        debug: bool
+    ) -> PolynomialRingElement {
+
         dprintln!(debug, "SmallPolynomial::to_ring_element called");
-        let finite_field_coefficients: Vec<FiniteFieldElement> = self.coefficients
-            .iter()
-            .map(|small_value| FiniteFieldElement::new(small_value.value as i32, debug))
-            .collect();
-        PolynomialRingElement::from_coefficients(finite_field_coefficients, debug)
+
+        let finite_field_coefficients: Vec<FiniteFieldElement> = 
+            self.coefficients
+                .iter()
+                .map(|small_value| FiniteFieldElement::new(
+                    small_value.value as i32, 
+                    debug
+                ))
+                .collect();
+
+        PolynomialRingElement::from_coefficients(
+            finite_field_coefficients, 
+            debug
+        )
     }
 
     pub fn encode(&self, debug: bool) -> Vec<u8> {
+
         dprintln!(debug, "SmallPolynomial::encode called");
         let mut encoded_bytes = 
             Vec::with_capacity(SNTRUP761_SMALL_POLYNOMIAL_BYTES);
@@ -305,11 +408,13 @@ impl SmallPolynomial {
     }
 
     pub fn decode(data: &[u8], debug: bool) -> Self {
+
         dprintln!(
             debug, 
             "SmallPolynomial::decode called with {} bytes", 
             data.len()
         );
+
         let mut coefficients = 
             Vec::with_capacity(SNTRUP761_PRIME_DEGREE);
         let mut byte_index = 0;
@@ -385,20 +490,30 @@ impl RoundedPolynomial {
         }
     }
 
-    pub fn from_ring_element(polynomial: &PolynomialRingElement, debug: bool) -> Self {
+    pub fn from_ring_element(
+        polynomial: &PolynomialRingElement, 
+        debug: bool
+    ) -> Self {
+
         dprintln!(debug, "RoundedPolynomial::from_ring_element called");
+
         let mut result = RoundedPolynomial::new(debug);
+
         for (index, coefficient) in polynomial.coefficients.iter().enumerate() {
             let rounded_value = ((coefficient.value + 2295) / 3) * 3 - 2295;
             result.coefficients[index] = rounded_value;
         }
+
         result
     }
 
     pub fn encode(&self, debug: bool) -> Vec<u8> {
+
         dprintln!(debug, "RoundedPolynomial::encode called");
+
         let mut encoded_bytes = 
             Vec::with_capacity(SNTRUP761_ROUNDED_BYTES);
+
         let mut accumulator: u32 = 0;
         let mut bits_in_accumulator: u32 = 0;
         
@@ -490,50 +605,90 @@ impl Curve25519DiffieHellman {
         field_element
     }
 
-    fn field_element_to_bytes(&self, field_element: &[u64; 5]) -> [u8; 32] {
+    fn field_element_to_bytes(
+        &self, 
+        field_element: &[u64; 5]
+    ) -> [u8; 32] {
+
         dprintln!(self.debug, "Curve25519DiffieHellman::field_element_to_bytes called");
+
         let mut output_bytes = [0u8; 32];
         let mut carry_value: u64;
         let mut reduced_element = *field_element;
         
         for _ in 0..2 {
             for element_index in 0..4 {
-                carry_value = reduced_element[element_index] >> 51;
-                reduced_element[element_index] &= 0x7ffffffffffff;
-                reduced_element[element_index + 1] += carry_value;
+                carry_value =
+                    reduced_element[element_index] >> 51;
+
+                reduced_element[element_index]
+                    &= 0x7ffffffffffff;
+
+                reduced_element[element_index + 1]
+                    += carry_value;
             }
             carry_value = reduced_element[4] >> 51;
             reduced_element[4] &= 0x7ffffffffffff;
             reduced_element[0] += carry_value * 19;
         }
         
-        let combined_value = 
-            reduced_element[0] | 
-            (reduced_element[1] << 51) | 
-            (reduced_element[2] << 102) | 
-            (reduced_element[3] << 153) | 
-            (reduced_element[4] << 204);
-        
-        for byte_index in 0..32 {
-            output_bytes[byte_index] = 
-                ((combined_value >> (byte_index * 8)) & 0xff) as u8;
+        let mut accumulator: u128 = 0;
+        let mut bits_in_accumulator: u32 = 0;
+        let mut byte_index: usize = 0;
+
+        for limb in &reduced_element {
+            accumulator 
+                |= 
+                    (*limb as u128) 
+                    << bits_in_accumulator
+            ;
+
+            bits_in_accumulator += 51;
+
+            while bits_in_accumulator >= 8 && byte_index < 32 {
+                output_bytes[byte_index] = 
+                    (accumulator & 0xff) as u8;
+                accumulator >>= 8;
+                bits_in_accumulator -= 8;
+                byte_index += 1;
+            }
+        }
+
+        while byte_index < 32 {
+            output_bytes[byte_index] = (accumulator & 0xff) as u8;
+            accumulator >>= 8;
+            byte_index += 1;
         }
         
         output_bytes
     }
 
-    fn field_element_add(&self, first_element: &[u64; 5], second_element: &[u64; 5]) -> [u64; 5] {
+    fn field_element_add(
+        &self, 
+        first_element: &[u64; 5], 
+        second_element: &[u64; 5]
+    ) -> [u64; 5] {
+
         dprintln!(self.debug, "Curve25519DiffieHellman::field_element_add called");
+
         let mut sum_result = [0u64; 5];
         for element_index in 0..5 {
             sum_result[element_index] = 
-                first_element[element_index] + second_element[element_index];
+                first_element[element_index] 
+                + 
+                second_element[element_index];
         }
         sum_result
     }
 
-    fn field_element_subtract(&self, first_element: &[u64; 5], second_element: &[u64; 5]) -> [u64; 5] {
+    fn field_element_subtract(
+        &self, 
+        first_element: &[u64; 5], 
+        second_element: &[u64; 5]
+    ) -> [u64; 5] {
+
         dprintln!(self.debug, "Curve25519DiffieHellman::field_element_subtract called");
+
         let mut difference_result = [0u64; 5];
         let two_times_prime: [u64; 5] = 
             [0xfffffffffffda, 0xffffffffffffe, 0xffffffffffffe, 0xffffffffffffe, 0xffffffffffffe];
@@ -753,7 +908,7 @@ impl Curve25519DiffieHellman {
     }
 }
 
-pub struct SecureHashAlgorithm512 {
+pub struct SHA512 {
     state: [u64; 8],
     buffer: [u8; 128],
     buffer_length: usize,
@@ -761,7 +916,7 @@ pub struct SecureHashAlgorithm512 {
     debug: bool,
 }
 
-impl SecureHashAlgorithm512 {
+impl SHA512 {
     const ROUND_CONSTANTS: [u64; 80] = [
         0x428a2f98d728ae22, 0x7137449123ef65cd, 0xb5c0fbcfec4d3b2f, 0xe9b5dba58189dbbc,
         0x3956c25bf348b538, 0x59f111f1b605d019, 0x923f82a4af194f9b, 0xab1c5ed5da6d8118,
@@ -791,8 +946,8 @@ impl SecureHashAlgorithm512 {
     ];
 
     pub fn new(debug: bool) -> Self {
-        dprintln!(debug, "SecureHashAlgorithm512::new called");
-        SecureHashAlgorithm512 {
+        dprintln!(debug, "SHA512::new called");
+        SHA512 {
             state: Self::INITIAL_STATE,
             buffer: [0u8; 128],
             buffer_length: 0,
@@ -802,7 +957,7 @@ impl SecureHashAlgorithm512 {
     }
 
     fn process_block(&mut self, block: &[u8]) {
-        dprintln!(self.debug, "SecureHashAlgorithm512::process_block called");
+        dprintln!(self.debug, "SHA512::process_block called");
         let mut message_schedule = [0u64; 80];
         
         for word_index in 0..16 {
@@ -895,7 +1050,7 @@ impl SecureHashAlgorithm512 {
     pub fn update(&mut self, data: &[u8]) {
         dprintln!(
             self.debug, 
-            "SecureHashAlgorithm512::update called with {} bytes", 
+            "SHA512::update called with {} bytes", 
             data.len()
         );
         let mut data_offset: usize = 0;
@@ -934,7 +1089,7 @@ impl SecureHashAlgorithm512 {
     }
 
     pub fn finalize(mut self) -> [u8; 64] {
-        dprintln!(self.debug, "SecureHashAlgorithm512::finalize called");
+        dprintln!(self.debug, "SHA512::finalize called");
         let total_bits = self.total_length * 8;
         
         self.buffer[self.buffer_length] = 0x80;
@@ -971,8 +1126,8 @@ impl SecureHashAlgorithm512 {
     }
 
     pub fn hash(data: &[u8], debug: bool) -> [u8; 64] {
-        dprintln!(debug, "SecureHashAlgorithm512::hash called with {} bytes", data.len());
-        let mut hasher = SecureHashAlgorithm512::new(debug);
+        dprintln!(debug, "SHA512::hash called with {} bytes", data.len());
+        let mut hasher = SHA512::new(debug);
         hasher.update(data);
         hasher.finalize()
     }
@@ -1235,7 +1390,7 @@ impl Sntrup761X25519Sha512KeyEncapsulationMechanism {
         hash_input.extend_from_slice(&x25519_ephemeral_public);
         hash_input.extend_from_slice(x25519_public_bytes);
         
-        let hash_output = SecureHashAlgorithm512::hash(&hash_input, self.debug);
+        let hash_output = SHA512::hash(&hash_input, self.debug);
         let mut shared_secret = [0u8; SHARED_SECRET_SIZE];
         shared_secret.copy_from_slice(&hash_output[0..SHARED_SECRET_SIZE]);
         
@@ -1349,7 +1504,7 @@ impl Sntrup761X25519Sha512KeyEncapsulationMechanism {
         hash_input.extend_from_slice(x25519_ephemeral_public_bytes);
         hash_input.extend_from_slice(x25519_own_public);
         
-        let hash_output = SecureHashAlgorithm512::hash(&hash_input, self.debug);
+        let hash_output = SHA512::hash(&hash_input, self.debug);
         let mut shared_secret = [0u8; SHARED_SECRET_SIZE];
         shared_secret.copy_from_slice(&hash_output[0..SHARED_SECRET_SIZE]);
         

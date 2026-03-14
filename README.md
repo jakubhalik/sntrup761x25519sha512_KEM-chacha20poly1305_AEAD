@@ -12,7 +12,6 @@ Strictly to be written in a way where u acronymishly abbreviate only if it is a 
         fe_from_bytes	field_element_from_bytes
         fe_to_bytes	field_element_to_bytes
         cswap	conditional_swap
-        mul multiply
         Sntrup761x25519Sha512	Sntrup761X25519Sha512KeyEncapsulationMechanism
         to_rq	to_ring_element
         from_rq	from_ring_element
