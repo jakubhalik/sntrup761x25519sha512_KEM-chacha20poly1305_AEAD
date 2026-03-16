@@ -7,6 +7,8 @@ use pqcrypto_traits::kem::{
     SharedSecret as KemSharedSecret, 
     Ciphertext as KemCiphertext
 };
+use zeroize::Zeroize;
+use crate::zeroize_all;
 use std::io::{Read, Write};
 use std::net::TcpStream;
 
@@ -100,6 +102,15 @@ pub fn server_encapsulate(
         _debug
     );
     Ok(shared_secret)
+    zeroize_all!(
+        client_keys,
+        sntrup_shared_secret,
+        sntrup_ciphertext,
+        server_x25519_secret,
+        server_x25519_public,
+        x25519_shared_secret,
+        sntrup_ciphertext_bytes,
+    );
 }
 
 pub fn client_decapsulate(
@@ -107,7 +118,6 @@ pub fn client_decapsulate(
     keypair: HybridKeyPair,
     _debug: bool,
 ) -> Result<[u8; 64], String> {
-
     let public_keys = keypair.get_public_keys();
     stream.write_all(&(public_keys.sntrup_pk_bytes.len() as u32).to_be_bytes()).map_err(|e| e.to_string())?;
     stream.write_all(&public_keys.sntrup_pk_bytes).map_err(|e| e.to_string())?;
@@ -133,6 +143,17 @@ pub fn client_decapsulate(
         _debug
     );
     Ok(shared_secret)
+    zeroize_all!(
+        public_keys,
+        sntrup_ciphertext_bytes,
+        server_x25519_pk_bytes,
+        sntrup_ciphertext,
+        server_x25519_pk,
+        sntrup_shared_secret,
+        x25519_shared_secret,
+        sntrup_ciphertext_len,
+        len_buf,
+    )
 }
 
 pub fn shared_secret_hex(secret: &[u8; 64]) -> String {
