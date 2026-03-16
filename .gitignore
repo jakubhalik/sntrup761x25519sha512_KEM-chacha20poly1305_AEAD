@@ -1,10 +1,10 @@
 *.pdf
 *.log
 *.aux
-
-
-
-# Added by cargo
-
+temp
+.temp
+tmp
+.tmp
 /target
 Cargo.lock
+
