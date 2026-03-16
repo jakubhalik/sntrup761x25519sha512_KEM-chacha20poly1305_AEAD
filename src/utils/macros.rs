@@ -21,7 +21,7 @@ macro_rules! define_args {
         impl Args {
             pub fn new() -> Self {
                 Args {
-                    $($name: ($aliases),)*
+                    $($name: $aliases,)*
                 }
             }
             pub fn arg_map(&self) -> Vec<(&'static str, &'static [&'static str])> {
