@@ -11,6 +11,11 @@ use pqcrypto_traits::kem::{PublicKey as KemPublicKey, SharedSecret as KemSharedS
 use x25519_dalek::{EphemeralSecret, PublicKey as X25519PublicKey};
 use rand::rngs::OsRng;
 use sha2::{Sha512, Digest};
+use crate::crypto::post_quantum::sntrup761x25519_sha512::{
+    HybridKeyPair,
+    server_encapsulate,
+    client_decapsulate,
+};
 
 const SNTRUP761_PK_SIZE: usize = 1158;
 const SNTRUP761_CT_SIZE: usize = 1039;
@@ -302,6 +307,104 @@ async fn test_async_stress_5_seconds() {
     println!(
         "[async_5s] {} successes, {} failures, {:.1} exchanges/sec ({} concurrent clients, 8 worker threads)",
         successes, failures, rate, num_clients
+    );
+    assert!(successes > 0);
+}
+
+// above are tests with functions implemented here so u can see the diffs between running diff
+// things tokio or single thread, below are agnostic tests of the reality, that apply the functions
+// from the actual sntrup761x25519_sha512/mod.rs that are ran by the program when u actually
+// normally run it, so i can always compare what I actually run to single-thread/tokio no matter
+// what async/multi_thread combo is written in my sntrup761x25519_sha512 mod file currently
+fn applied_funcs_stress_test(duration: Duration) -> (u64, u64) {
+    let port = find_available_port();
+    let shutdown = Arc::new(AtomicBool::new(false));
+    let shutdown_clone = shutdown.clone();
+    thread::spawn(move || {
+        let listener = StdTcpListener::bind(("127.0.0.1", port)).unwrap();
+        listener.set_nonblocking(true).unwrap();
+        while !shutdown_clone.load(Ordering::Relaxed) {
+            match listener.accept() {
+                Ok((mut stream, _)) => {
+                    stream.set_nonblocking(false).unwrap();
+                    stream.set_read_timeout(Some(Duration::from_secs(10))).ok();
+                    stream.set_write_timeout(Some(Duration::from_secs(10))).ok();
+                    let _ = server_encapsulate(&mut stream, false);
+                }
+                Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                    thread::sleep(Duration::from_millis(1));
+                }
+                Err(_) => {}
+            }
+        }
+    });
+    thread::sleep(Duration::from_millis(50));
+    let successes = Arc::new(AtomicU64::new(0));
+    let failures = Arc::new(AtomicU64::new(0));
+    let start = Instant::now();
+    while start.elapsed() < duration {
+        let mut stream = match std::net::TcpStream::connect(("127.0.0.1", port)) {
+            Ok(s) => s,
+            Err(_) => {
+                failures.fetch_add(1, Ordering::Relaxed);
+                continue;
+            }
+        };
+        stream.set_read_timeout(Some(Duration::from_secs(10))).ok();
+        stream.set_write_timeout(Some(Duration::from_secs(10))).ok();
+        let keypair = HybridKeyPair::generate(false);
+        match client_decapsulate(&mut stream, keypair, false) {
+            Ok(_) => { successes.fetch_add(1, Ordering::Relaxed); }
+            Err(_) => { failures.fetch_add(1, Ordering::Relaxed); }
+        }
+    }
+    shutdown.store(true, Ordering::Relaxed);
+    thread::sleep(Duration::from_millis(100));
+    (successes.load(Ordering::Relaxed), failures.load(Ordering::Relaxed))
+}
+
+#[test]
+fn test_applied_funcs_single_exchange() {
+    let port = find_available_port();
+    let server = thread::spawn(move || {
+        let listener = StdTcpListener::bind(("127.0.0.1", port)).unwrap();
+        let (mut stream, _) = listener.accept().unwrap();
+        stream.set_read_timeout(Some(Duration::from_secs(10))).ok();
+        stream.set_write_timeout(Some(Duration::from_secs(10))).ok();
+        server_encapsulate(&mut stream, false).unwrap()
+    });
+    thread::sleep(Duration::from_millis(50));
+    let mut stream = std::net::TcpStream::connect(("127.0.0.1", port)).unwrap();
+    stream.set_read_timeout(Some(Duration::from_secs(10))).ok();
+    stream.set_write_timeout(Some(Duration::from_secs(10))).ok();
+    let keypair = HybridKeyPair::generate(false);
+    let client_secret = client_decapsulate(&mut stream, keypair, false).unwrap();
+    let server_secret = server.join().unwrap();
+    assert_eq!(client_secret, server_secret);
+    assert!(client_secret.iter().any(|&b| b != 0));
+    println!("[applied_funcs_single] secrets match: {:02x?}", &client_secret[..16]);
+}
+
+#[test]
+fn test_applied_funcs_stress_1_second() {
+    let duration = Duration::from_secs(1);
+    let (successes, failures) = applied_funcs_stress_test(duration);
+    let rate = successes as f64 / duration.as_secs_f64();
+    println!(
+        "[applied_funcs_1s] {} successes, {} failures, {:.1} exchanges/sec",
+        successes, failures, rate
+    );
+    assert!(successes > 0);
+}
+
+#[test]
+fn test_applied_funcs_stress_5_seconds() {
+    let duration = Duration::from_secs(5);
+    let (successes, failures) = applied_funcs_stress_test(duration);
+    let rate = successes as f64 / duration.as_secs_f64();
+    println!(
+        "[applied_funcs_5s] {} successes, {} failures, {:.1} exchanges/sec",
+        successes, failures, rate
     );
     assert!(successes > 0);
 }
