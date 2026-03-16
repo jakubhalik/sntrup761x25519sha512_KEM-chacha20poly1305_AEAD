@@ -2,7 +2,7 @@ use crate::dprintln;
 use crate::crypto::post_quantum::sntrup761x25519_sha512::server_encapsulate;
 use std::net::{TcpListener, TcpStream};
 
-fn initiate_client(
+fn initiate_server(
     mut stream: TcpStream, 
     debug: bool
 ) {
@@ -34,7 +34,7 @@ pub fn run(
     for stream in listener.incoming() {
         match stream {
             Ok(stream) => {
-                initiate_client(stream, debug);
+                initiate_server(stream, debug);
             }
             Err(e) => {
                 dprintln!(debug, "[server] Connection error: {}", e);
