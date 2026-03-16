@@ -1,14 +1,13 @@
 #[cfg(feature = "e2e-tests")]
 use crate::compilation::e2e_registry;
 
-fn handle_e2e(args: &[String]) {
+fn handle_e2e(_args: &[String]) {
     #[cfg(not(feature = "e2e-tests"))]
     {
-        eprintln!("Error: e2e tests not enabled.");
+        eprintln!("Error: e2e tests not enabled");
         eprintln!("Rebuild with: cargo build --features e2e-tests");
         std::process::exit(1);
     }
-
     #[cfg(feature = "e2e-tests")]
     {
         if args.len() < 3 {
@@ -17,14 +16,11 @@ fn handle_e2e(args: &[String]) {
             list_e2e_tests();
             std::process::exit(1);
         }
-
         let test_name = &args[2];
-
         if test_name == "list" {
             list_e2e_tests();
             return;
         }
-
         match e2e_registry::find_test(test_name) {
             Some(test_fn) => test_fn(),
             None => {
@@ -41,7 +37,7 @@ fn handle_e2e(args: &[String]) {
 fn list_e2e_tests() {
     let tests = e2e_registry::all_tests();
     if tests.is_empty() {
-        eprintln!("No e2e tests registered.");
+        eprintln!("No e2e tests registered");
     } else {
         eprintln!("Available e2e tests:");
         for (name, _) in tests {
@@ -62,11 +58,9 @@ fn print_help() {
 
 pub fn handle_args() -> bool {
     let args: Vec<String> = std::env::args().collect();
-
     if args.len() < 2 {
         return false;
     }
-
     match args[1].as_str() {
         "--e2etest" => {
             handle_e2e(&args);

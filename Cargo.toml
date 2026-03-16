@@ -7,3 +7,10 @@ edition = "2024"
 default = []
 e2e-tests = []
 
+[dependencies]
+sha2 = "0.10"
+x25519-dalek = { version = "2.0", features = ["static_secrets"] }
+pqcrypto-traits = "0.3"
+pqcrypto-ntruprime = "0.1"
+rand = "0.8"
+
