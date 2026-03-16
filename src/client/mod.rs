@@ -1,7 +1,6 @@
 use crate::dprintln;
 use crate::crypto::post_quantum::sntrup761x25519_sha512::HybridKeyPair;
 use crate::crypto::post_quantum::sntrup761x25519_sha512::client_decapsulate;
-use crate::crypto::post_quantum::sntrup761x25519_sha512::shared_secret_hex;
 use std::net::TcpStream;
 
 pub fn run(
@@ -23,10 +22,8 @@ pub fn run(
         keypair, 
         debug
     ) {
-        Ok(shared_secret) => {
+        Ok(_shared_secret) => {
             println!("sntrup761x25519_sha512 mated with {}", port);
-            dprintln!(debug, "[client] Shared secret (first 16 bytes): {}", 
-                &shared_secret_hex(&shared_secret)[..32]);
         }
         Err(e) => {
             dprintln!(debug, "[client] Key exchange failed: {}", e);

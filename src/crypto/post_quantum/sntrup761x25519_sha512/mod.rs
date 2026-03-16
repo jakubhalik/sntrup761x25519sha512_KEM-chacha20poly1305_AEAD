@@ -129,6 +129,3 @@ pub fn client_decapsulate(
     Ok(shared_secret)
 }
 
-pub fn shared_secret_hex(secret: &[u8; 64]) -> String {
-    secret.iter().map(|b| format!("{:02x}", b)).collect()
-}
