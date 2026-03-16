@@ -10,6 +10,7 @@ fn initiate_client(
         Ok(_shared_secret) => {
             let peer = stream.peer_addr().unwrap();
             println!("{peer} sntrup761x25519_sha512 mated with me");
+            traffic();
         }
         Err(e) => {
             eprintln!("Key exchange failed: {}", e);
