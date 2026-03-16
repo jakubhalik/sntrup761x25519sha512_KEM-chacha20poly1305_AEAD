@@ -1,14 +1,15 @@
 use crate::dprintln;
 use crate::crypto::post_quantum::sntrup761x25519_sha512::HybridKeyPair;
 use crate::crypto::post_quantum::sntrup761x25519_sha512::client_decapsulate;
-use crate::client::args;
+use crate::client::args::Args;
 use std::net::TcpStream;
 use std::env;
+pub mod args;
 
-fn parse_arguments() -> Vec<(String, Option<String>)> {
+fn parse_args() -> Vec<(String, Option<String>)> {
     let cli_args: Vec<String> = env::args().collect();
     let args = Args::new();
-    let arg_map = args.arg_map();
+    let arg_map: Vec<(&str, &[&str])> = args.arg_map();
     let mut arguments: Vec<(String, Option<String>)> = Vec::new();
     let mut current_key: Option<String> = None;
     let mut current_value: Option<String> = None;
@@ -46,8 +47,8 @@ fn parse_arguments() -> Vec<(String, Option<String>)> {
 }
 
 fn run_logic_based_on_args() {
-    args = parse_args();
-    println!("{:?}" args);
+    let args = parse_args();
+    println!("{:?}", args);
     //macro run functions from the client dir that have the same name as is the name of the key in the Args struct
 }
 
@@ -71,7 +72,7 @@ pub fn run(
         debug
     ) {
         Ok(_shared_secret) => {
-            dprintln!("sntrup761x25519_sha512 mated with {}", port);
+            dprintln!(debug, "sntrup761x25519_sha512 mated with {}", port);
             run_logic_based_on_args();
         }
         Err(e) => {
