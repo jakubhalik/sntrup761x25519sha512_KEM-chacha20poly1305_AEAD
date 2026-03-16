@@ -49,7 +49,7 @@ fn parse_args() -> Vec<(String, Option<String>)> {
 fn run_logic_based_on_args() {
     let args = parse_args();
     println!("{:?}", args);
-    //macro run functions from the client dir that have the same name as is the name of the key in the Args struct
+    //macro run functions from the traffic dir that have the same name as is the name of the key in the Args struct
 }
 
 pub fn run(

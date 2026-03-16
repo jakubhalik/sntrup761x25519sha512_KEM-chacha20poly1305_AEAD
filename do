@@ -105,3 +105,8 @@ where what will be the first val each time will be stringified key in the struct
 7.
   actually lets in the argument string skip the part with the flags and only show the arg that is after it, if it is not after it than if I can have an OR in a rust type than in that case let's just not have the second string there at all and in that case let's just have the name in the vector, also let's not have bools in the struct it is useless because the name just being in the vector is already an implicit true for the later logic
 
+8. multithreaded async tokionize tcp conns
+
+9.
+  I have functional sntrup761x25519sha512, now let's make a crypto/post_quantum/ChaCha20-Poly1305/mod.rs and traffic/mess_test_without_auth.rs with a client func that will encrypt the arg mess and send it, and a server one that will println! it, but make sure that it is just safe 
+  
