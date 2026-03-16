@@ -27,52 +27,40 @@ fn combine_secrets(sntrup_ss: &[u8], x25519_ss: &[u8]) -> [u8; 64] {
 
 fn sync_server_encapsulate(stream: &mut std::net::TcpStream) -> Result<[u8; 64], String> {
     use std::io::{Read, Write};
-
     let mut sntrup_pk_bytes = vec![0u8; SNTRUP761_PK_SIZE];
     stream.read_exact(&mut sntrup_pk_bytes).map_err(|e| e.to_string())?;
     let mut x25519_pk_bytes = [0u8; 32];
     stream.read_exact(&mut x25519_pk_bytes).map_err(|e| e.to_string())?;
-
     let sntrup_pk = sntrup761::PublicKey::from_bytes(&sntrup_pk_bytes)
         .map_err(|_| "Invalid sntrup761 public key".to_string())?;
     let x25519_pk = X25519PublicKey::from(x25519_pk_bytes);
-
     let (sntrup_ss, sntrup_ct) = sntrup761::encapsulate(&sntrup_pk);
-
     let server_x25519_secret = EphemeralSecret::random_from_rng(OsRng);
     let server_x25519_public = X25519PublicKey::from(&server_x25519_secret);
     let x25519_ss = server_x25519_secret.diffie_hellman(&x25519_pk);
-
     stream.write_all(sntrup_ct.as_bytes()).map_err(|e| e.to_string())?;
     stream.write_all(&server_x25519_public.to_bytes()).map_err(|e| e.to_string())?;
     stream.flush().map_err(|e| e.to_string())?;
-
     Ok(combine_secrets(sntrup_ss.as_bytes(), x25519_ss.as_bytes()))
 }
 
 fn sync_client_decapsulate(stream: &mut std::net::TcpStream) -> Result<[u8; 64], String> {
     use std::io::{Read, Write};
-
     let (sntrup_pk, sntrup_sk) = sntrup761::keypair();
     let x25519_secret = EphemeralSecret::random_from_rng(OsRng);
     let x25519_public = X25519PublicKey::from(&x25519_secret);
-
     stream.write_all(sntrup_pk.as_bytes()).map_err(|e| e.to_string())?;
     stream.write_all(&x25519_public.to_bytes()).map_err(|e| e.to_string())?;
     stream.flush().map_err(|e| e.to_string())?;
-
     let mut sntrup_ct_bytes = vec![0u8; SNTRUP761_CT_SIZE];
     stream.read_exact(&mut sntrup_ct_bytes).map_err(|e| e.to_string())?;
     let mut server_x25519_pk_bytes = [0u8; 32];
     stream.read_exact(&mut server_x25519_pk_bytes).map_err(|e| e.to_string())?;
-
     let sntrup_ct = sntrup761::Ciphertext::from_bytes(&sntrup_ct_bytes)
         .map_err(|_| "Invalid ciphertext".to_string())?;
     let server_x25519_pk = X25519PublicKey::from(server_x25519_pk_bytes);
-
     let sntrup_ss = sntrup761::decapsulate(&sntrup_ct, &sntrup_sk);
     let x25519_ss = x25519_secret.diffie_hellman(&server_x25519_pk);
-
     Ok(combine_secrets(sntrup_ss.as_bytes(), x25519_ss.as_bytes()))
 }
 
@@ -105,29 +93,22 @@ async fn async_client_decapsulate(stream: &mut tokio::net::TcpStream) -> Result<
     let (sntrup_pk, sntrup_sk) = tokio::task::spawn_blocking(|| {
         sntrup761::keypair()
     }).await.map_err(|e| e.to_string())?;
-
     let x25519_secret = EphemeralSecret::random_from_rng(OsRng);
     let x25519_public = X25519PublicKey::from(&x25519_secret);
-
     stream.write_all(sntrup_pk.as_bytes()).await.map_err(|e| e.to_string())?;
     stream.write_all(&x25519_public.to_bytes()).await.map_err(|e| e.to_string())?;
     stream.flush().await.map_err(|e| e.to_string())?;
-
     let mut sntrup_ct_bytes = vec![0u8; SNTRUP761_CT_SIZE];
     stream.read_exact(&mut sntrup_ct_bytes).await.map_err(|e| e.to_string())?;
     let mut server_x25519_pk_bytes = [0u8; 32];
     stream.read_exact(&mut server_x25519_pk_bytes).await.map_err(|e| e.to_string())?;
-
     let sntrup_ct = sntrup761::Ciphertext::from_bytes(&sntrup_ct_bytes)
         .map_err(|_| "Invalid ciphertext".to_string())?;
     let server_x25519_pk = X25519PublicKey::from(server_x25519_pk_bytes);
-
     let sntrup_ss = tokio::task::spawn_blocking(move || {
         sntrup761::decapsulate(&sntrup_ct, &sntrup_sk)
     }).await.map_err(|e| e.to_string())?;
-
     let x25519_ss = x25519_secret.diffie_hellman(&server_x25519_pk);
-
     Ok(combine_secrets(sntrup_ss.as_bytes(), x25519_ss.as_bytes()))
 }
 
@@ -142,11 +123,9 @@ fn sync_stress_test(duration: Duration) -> (u64, u64) {
     let port = find_available_port();
     let shutdown = Arc::new(AtomicBool::new(false));
     let shutdown_clone = shutdown.clone();
-
     thread::spawn(move || {
         let listener = StdTcpListener::bind(("127.0.0.1", port)).unwrap();
         listener.set_nonblocking(true).unwrap();
-
         while !shutdown_clone.load(Ordering::Relaxed) {
             match listener.accept() {
                 Ok((mut stream, _)) => {
@@ -162,13 +141,10 @@ fn sync_stress_test(duration: Duration) -> (u64, u64) {
             }
         }
     });
-
     thread::sleep(Duration::from_millis(50));
-
     let successes = Arc::new(AtomicU64::new(0));
     let failures = Arc::new(AtomicU64::new(0));
     let start = Instant::now();
-
     while start.elapsed() < duration {
         let mut stream = match std::net::TcpStream::connect(("127.0.0.1", port)) {
             Ok(s) => s,
@@ -185,10 +161,8 @@ fn sync_stress_test(duration: Duration) -> (u64, u64) {
             Err(_) => { failures.fetch_add(1, Ordering::Relaxed); }
         }
     }
-
     shutdown.store(true, Ordering::Relaxed);
     thread::sleep(Duration::from_millis(100));
-
     (successes.load(Ordering::Relaxed), failures.load(Ordering::Relaxed))
 }
 
@@ -196,7 +170,6 @@ async fn async_stress_test(duration: Duration, num_clients: usize) -> (u64, u64)
     let listener = TokioTcpListener::bind("127.0.0.1:0").await.unwrap();
     let port = listener.local_addr().unwrap().port();
     let shutdown = Arc::new(Notify::new());
-
     let shutdown_clone = shutdown.clone();
     tokio::spawn(async move {
         loop {
@@ -212,11 +185,9 @@ async fn async_stress_test(duration: Duration, num_clients: usize) -> (u64, u64)
             }
         }
     });
-
     let successes = Arc::new(AtomicU64::new(0));
     let failures = Arc::new(AtomicU64::new(0));
     let start = Instant::now();
-
     let mut handles = Vec::new();
     for _ in 0..num_clients {
         let cs = successes.clone();
@@ -236,21 +207,17 @@ async fn async_stress_test(duration: Duration, num_clients: usize) -> (u64, u64)
         });
         handles.push(handle);
     }
-
     for handle in handles {
         handle.await.unwrap();
     }
-
     shutdown.notify_one();
     tokio::time::sleep(Duration::from_millis(50)).await;
-
     (successes.load(Ordering::Relaxed), failures.load(Ordering::Relaxed))
 }
 
 #[test]
 fn test_sync_single_exchange() {
     let port = find_available_port();
-
     let server = thread::spawn(move || {
         let listener = StdTcpListener::bind(("127.0.0.1", port)).unwrap();
         let (mut stream, _) = listener.accept().unwrap();
@@ -258,16 +225,12 @@ fn test_sync_single_exchange() {
         stream.set_write_timeout(Some(Duration::from_secs(10))).ok();
         sync_server_encapsulate(&mut stream).unwrap()
     });
-
     thread::sleep(Duration::from_millis(50));
-
     let mut stream = std::net::TcpStream::connect(("127.0.0.1", port)).unwrap();
     stream.set_read_timeout(Some(Duration::from_secs(10))).ok();
     stream.set_write_timeout(Some(Duration::from_secs(10))).ok();
     let client_secret = sync_client_decapsulate(&mut stream).unwrap();
-
     let server_secret = server.join().unwrap();
-
     assert_eq!(client_secret, server_secret);
     assert!(client_secret.iter().any(|&b| b != 0));
     println!("[sync_single] secrets match: {:02x?}", &client_secret[..16]);
@@ -316,7 +279,9 @@ fn test_sync_stress_5_seconds() {
 #[tokio::test(flavor = "multi_thread")]
 async fn test_async_stress_1_second() {
     let duration = Duration::from_secs(1);
-    let num_clients = 16;
+    let num_clients = std::thread::available_parallelism()
+        .map(|p| p.get() * 20)
+        .unwrap_or(64);
     let (successes, failures) = async_stress_test(duration, num_clients).await;
     let rate = successes as f64 / duration.as_secs_f64();
     println!(
@@ -329,7 +294,9 @@ async fn test_async_stress_1_second() {
 #[tokio::test(flavor = "multi_thread")]
 async fn test_async_stress_5_seconds() {
     let duration = Duration::from_secs(5);
-    let num_clients = 16;
+    let num_clients = std::thread::available_parallelism()
+        .map(|p| p.get() * 10)
+        .unwrap_or(64);
     let (successes, failures) = async_stress_test(duration, num_clients).await;
     let rate = successes as f64 / duration.as_secs_f64();
     println!(
