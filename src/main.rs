@@ -6,6 +6,8 @@ mod utils;
 mod compilation;
 mod client;
 mod server;
+#[cfg(test)]
+mod tests;
 
 const LOCALHOST: &str = "127.0.0.1";
 const IP: &str = LOCALHOST;

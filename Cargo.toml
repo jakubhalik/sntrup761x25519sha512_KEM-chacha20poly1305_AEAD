@@ -14,3 +14,5 @@ pqcrypto-traits = "0.3"
 pqcrypto-ntruprime = "0.1"
 rand = "0.8"
 
+[dev-dependencies]
+tokio = { version = "1.50", features = ["full"] }
