@@ -16,15 +16,15 @@ macro_rules! zeroize_all {
 macro_rules! define_args {
     ($($name:ident: $aliases:expr),* $(,)?) => {
         pub struct Args {
-            $(pub $name: (&'static [&'static str],),)*
+            $(pub $name: &'static [&'static str],)*
         }
         impl Args {
-            fn new() -> Self {
+            pub fn new() -> Self {
                 Args {
                     $($name: ($aliases),)*
                 }
             }
-            fn arg_map(&self) -> Vec<(&'static str, &'static [&'static str])> {
+            pub fn arg_map(&self) -> Vec<(&'static str, &'static [&'static str])> {
                 vec![
                     $((stringify!($name), self.$name),)*
                 ]
