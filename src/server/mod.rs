@@ -9,7 +9,8 @@ fn initiate_client(
 ) {
     match server_encapsulate(&mut stream, debug) {
         Ok(shared_secret) => {
-            println!("someone sntrup761x25519_sha512 mated with me");
+            let peer = stream.peer_addr().unwrap();
+            println!("{peer} sntrup761x25519_sha512 mated with me");
             dprintln!(
                 debug, 
                 "[server] Shared secret (first 16 bytes): {}", 
