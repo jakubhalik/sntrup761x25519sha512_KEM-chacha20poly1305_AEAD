@@ -8,7 +8,7 @@ macro_rules! dprintln {
 }
 #[macro_export]
 macro_rules! zeroize_all {
-    ($($var:expr),+ $(,)?) => {
+    ($($var:expr),+ $(,)?) => {{
         $($var.zeroize();)+
-    };
+    }};
 }
