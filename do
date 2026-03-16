@@ -107,7 +107,8 @@ where what will be the first val each time will be stringified key in the struct
 
 8.
   test that u can run a server and client that sntrup761x25519sha512 mate
-  test server running and client trying to mate it as many times as possible as fast as possible
+  test server running and client trying to mate it as many times as possible in 1 seconds
+  test server running and client trying to mate it as many times as possible in 5 seconds
 
 9. 
   multithreaded async tokionize tcp conns
