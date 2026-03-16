@@ -88,3 +88,20 @@
     }
 from a diff program of mine
 
+4.
+  pub struct args: <Key<bool, &str>> {
+      mess_test_without_auth: <bool, "--mess_test_without_auth">,
+  }
+    cli_args: Vec<String> = env::args().collect();
+    arguments: Vec<String> = map which cli_args match to strings in args
+        will be collected by checking for each time in cli_args there is a `-` or `--` and if that will equal to an arg from struct args it will be an argument in arguments together with all whatever text is also whatever is after it until there is a `-` again, then repeat appending arguments until on end of cli_args, this way if ran as `bin --mess_test_without_auth hello there goody goody friendy --proxy 185.243.218.230 -R "8080"` arguments should end up as ["--mess_test_without_auth hello there goody goody friendy", "--proxy 185.243.218.230", "-R 8080"]
+5.
+  great, but i changed my mind about the type I want them all to be (&'static Vec<str>, bool),  so I can use both -R and --reverse for example
+
+6.
+  let's have a     let mut args: Vec<String, String> = Vec::new();
+where what will be the first val each time will be stringified key in the struct, so an example of a Vector field being <"mess_test_without_auth", "--mess_test_without_auth">
+
+7.
+  actually lets in the argument string skip the part with the flags and only show the arg that is after it, if it is not after it than if I can have an OR in a rust type than in that case let's just not have the second string there at all and in that case let's just have the name in the vector, also let's not have bools in the struct it is useless because the name just being in the vector is already an implicit true for the later logic
+
