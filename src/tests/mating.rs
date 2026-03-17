@@ -291,7 +291,7 @@ async fn test_async_stress_1_second() {
     let (successes, failures) = async_stress_test(duration, num_clients).await;
     let rate = successes as f64 / duration.as_secs_f64();
     tprintln!(
-        "[async_1s] {} successes, {} failures, {:.1} exchanges/sec ({} concurrent clients, 8 worker threads)",
+        "[async_1s] {} successes, {} failures, {:.1} exchanges/sec ({} concurrent clients)",
         successes, failures, rate, num_clients
     );
     assert!(successes > 0);
@@ -306,7 +306,7 @@ async fn test_async_stress_5_seconds() {
     let (successes, failures) = async_stress_test(duration, num_clients).await;
     let rate = successes as f64 / duration.as_secs_f64();
     tprintln!(
-        "[async_5s] {} successes, {} failures, {:.1} exchanges/sec ({} concurrent clients, 8 worker threads)",
+        "[async_5s] {} successes, {} failures, {:.1} exchanges/sec ({} concurrent clients)",
         successes, failures, rate, num_clients
     );
     assert!(successes > 0);
@@ -620,3 +620,71 @@ async fn test_async_10000_matings_stats() {
     let slowest = durations.iter().max().unwrap();
     tprintln!("[async_10000] {} completed, average: {:?}, fastest: {:?}, slowest: {:?}", count, average, fastest, slowest);
 }
+
+async fn async_server_sync_clients_parallel(num_clients: usize) -> Duration {
+    let listener = TokioTcpListener::bind("127.0.0.1:0").await.unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let shutdown = Arc::new(Notify::new());
+    let shutdown_clone = shutdown.clone();
+    tokio::spawn(async move {
+        loop {
+            tokio::select! {
+                result = listener.accept() => {
+                    if let Ok((mut stream, _)) = result {
+                        tokio::spawn(async move {
+                            let _ = async_server_encapsulate(&mut stream).await;
+                        });
+                    }
+                }
+                _ = shutdown_clone.notified() => { break; }
+            }
+        }
+    });
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    let completed = Arc::new(AtomicU64::new(0));
+    let start = Instant::now();
+    let completed_logger = completed.clone();
+    let logger_shutdown = Arc::new(AtomicBool::new(false));
+    let logger_shutdown_clone = logger_shutdown.clone();
+    let num_clients_log = num_clients;
+    let logger = thread::spawn(move || {
+        while !logger_shutdown_clone.load(Ordering::Relaxed) {
+            let count = completed_logger.load(Ordering::Relaxed);
+            let elapsed = start.elapsed();
+            tprintln!("[progress] {} / {} mated in {:?}", count, num_clients_log, elapsed);
+            if count >= num_clients_log as u64 {
+                break;
+            }
+            thread::sleep(Duration::from_millis(100));
+        }
+    });
+    let mut handles = Vec::with_capacity(num_clients);
+    for _ in 0..num_clients {
+        let completed = completed.clone();
+        let handle = thread::spawn(move || {
+            let mut stream = std::net::TcpStream::connect(("127.0.0.1", port)).unwrap();
+            stream.set_read_timeout(Some(Duration::from_secs(30))).ok();
+            stream.set_write_timeout(Some(Duration::from_secs(30))).ok();
+            let _ = sync_client_decapsulate(&mut stream).unwrap();
+            completed.fetch_add(1, Ordering::Relaxed);
+        });
+        handles.push(handle);
+    }
+    for handle in handles {
+        handle.join().unwrap();
+    }
+    let total_elapsed = start.elapsed();
+    logger_shutdown.store(true, Ordering::Relaxed);
+    logger.join().unwrap();
+    shutdown.notify_one();
+    tprintln!("[async_server_{}_sync_clients] {} clients mated in {:?}", num_clients, num_clients, total_elapsed);
+    total_elapsed
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_async_server_n_sync_clients_parallel() {
+    async_server_sync_clients_parallel(1000).await;
+    async_server_sync_clients_parallel(10000).await;
+    async_server_sync_clients_parallel(100000).await;
+}
+
