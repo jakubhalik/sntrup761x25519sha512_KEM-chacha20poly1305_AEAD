@@ -53,8 +53,8 @@ fn run_logic_based_on_args() {
 }
 
 pub fn run(
-    ip: &str, 
-    port: u16, 
+    ip: &str,
+    port: u16,
     debug: bool
 ) {
     dprintln!(debug, "[client] Connecting to {}:{}...", ip, port);

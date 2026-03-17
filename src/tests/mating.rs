@@ -316,7 +316,7 @@ async fn test_async_stress_5_seconds() {
 // from the actual sntrup761x25519_sha512/mod.rs that are ran by the program when u actually
 // normally run it, so i can always compare what I actually run to single-thread/tokio no matter
 // what async/multi_thread combo is written in my sntrup761x25519_sha512 mod file currently
-fn applied_funcs_stress_test(duration: Duration) -> (u64, u64) {
+fn applied_sntrup761x25519_sha512_funcs_stress_test(duration: Duration) -> (u64, u64) {
     let port = find_available_port();
     let shutdown = Arc::new(AtomicBool::new(false));
     let shutdown_clone = shutdown.clone();
@@ -364,7 +364,7 @@ fn applied_funcs_stress_test(duration: Duration) -> (u64, u64) {
 }
 
 #[test]
-fn test_applied_funcs_single_exchange() {
+fn test_applied_sntrup761x25519_sha512_funcs_single_exchange() {
     let port = find_available_port();
     let server = thread::spawn(move || {
         let listener = StdTcpListener::bind(("127.0.0.1", port)).unwrap();
@@ -382,29 +382,131 @@ fn test_applied_funcs_single_exchange() {
     let server_secret = server.join().unwrap();
     assert_eq!(client_secret, server_secret);
     assert!(client_secret.iter().any(|&b| b != 0));
-    println!("[applied_funcs_single] secrets match: {:02x?}", &client_secret[..16]);
+    println!("[applied_sntrup761x25519_sha512_funcs_single] secrets match: {:02x?}", &client_secret[..16]);
 }
 
 #[test]
-fn test_applied_funcs_stress_1_second() {
+fn test_applied_sntrup761x25519_sha512_funcs_stress_1_second() {
     let duration = Duration::from_secs(1);
-    let (successes, failures) = applied_funcs_stress_test(duration);
+    let (successes, failures) = applied_sntrup761x25519_sha512_funcs_stress_test(duration);
     let rate = successes as f64 / duration.as_secs_f64();
     println!(
-        "[applied_funcs_1s] {} successes, {} failures, {:.1} exchanges/sec",
+        "[applied_sntrup761x25519_sha512_funcs_1s] {} successes, {} failures, {:.1} exchanges/sec",
         successes, failures, rate
     );
     assert!(successes > 0);
 }
 
 #[test]
-fn test_applied_funcs_stress_5_seconds() {
+fn test_applied_sntrup761x25519_sha512_funcs_stress_5_seconds() {
     let duration = Duration::from_secs(5);
-    let (successes, failures) = applied_funcs_stress_test(duration);
+    let (successes, failures) = applied_sntrup761x25519_sha512_funcs_stress_test(duration);
     let rate = successes as f64 / duration.as_secs_f64();
     println!(
-        "[applied_funcs_5s] {} successes, {} failures, {:.1} exchanges/sec",
+        "[applied_sntrup761x25519_sha512_funcs_5s] {} successes, {} failures, {:.1} exchanges/sec",
         successes, failures, rate
+    );
+    assert!(successes > 0);
+}
+
+async fn applied_sntrup761x25519sha512_funcs_async_stress_test(
+    duration: Duration, 
+    num_clients: usize
+) -> (u64, u64) {
+    let listener = TokioTcpListener::bind("127.0.0.1:0").await.unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let shutdown = Arc::new(Notify::new());
+    let shutdown_clone = shutdown.clone();
+    tokio::spawn(async move {
+        loop {
+            tokio::select! {
+                result = listener.accept() => {
+                    if let Ok((stream, _)) = result {
+                        let std_stream = stream.into_std().unwrap();
+                        tokio::task::spawn_blocking(move || {
+                            let mut stream = std_stream;
+                            stream.set_read_timeout(Some(Duration::from_secs(10))).ok();
+                            stream.set_write_timeout(Some(Duration::from_secs(10))).ok();
+                            let _ = server_encapsulate(&mut stream, false);
+                        });
+                    }
+                }
+                _ = shutdown_clone.notified() => { break; }
+            }
+        }
+    });
+    let successes = Arc::new(AtomicU64::new(0));
+    let failures = Arc::new(AtomicU64::new(0));
+    let start = Instant::now();
+    let mut handles = Vec::new();
+    for _ in 0..num_clients {
+        let cs = successes.clone();
+        let cf = failures.clone();
+        let handle = tokio::spawn(async move {
+            while start.elapsed() < duration {
+                match tokio::net::TcpStream::connect(("127.0.0.1", port)).await {
+                    Ok(stream) => {
+                        let std_stream = stream.into_std().unwrap();
+                        let result = tokio::task::spawn_blocking(move || {
+                            let mut stream = std_stream;
+                            stream.set_read_timeout(Some(Duration::from_secs(10))).ok();
+                            stream.set_write_timeout(Some(Duration::from_secs(10))).ok();
+                            let keypair = HybridKeyPair::generate(false);
+                            client_decapsulate(&mut stream, keypair, false)
+                        }).await;
+                        match result {
+                            Ok(Ok(_)) => { cs.fetch_add(1, Ordering::Relaxed); }
+                            _ => { cf.fetch_add(1, Ordering::Relaxed); }
+                        }
+                    }
+                    Err(_) => { cf.fetch_add(1, Ordering::Relaxed); }
+                }
+            }
+        });
+        handles.push(handle);
+    }
+    for handle in handles {
+        handle.await.unwrap();
+    }
+    shutdown.notify_one();
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    (successes.load(Ordering::Relaxed), failures.load(Ordering::Relaxed))
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_applied_sntrup761x25519_sha512_funcs_async_stress_1_second() {
+    let duration = Duration::from_secs(1);
+    let num_clients = std::thread::available_parallelism()
+        .map(|p| p.get() * 20)
+        .unwrap_or(64);
+    let (successes, failures) = 
+        applied_sntrup761x25519sha512_funcs_async_stress_test(
+            duration, 
+            num_clients
+        ).await;
+    let rate = successes as f64 / duration.as_secs_f64();
+    println!(
+        "[applied_sntrup761x25519_sha512_funcs_async_1s] {} successes, {} failures, {:.1} exchanges/sec ({} concurrent clients)",
+        successes, failures, rate, num_clients
+    );
+    assert!(successes > 0);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_applied_sntrup761x25519_sha512_funcs_async_stress_5_seconds() {
+    let duration = Duration::from_secs(5);
+    let num_clients = std::thread::available_parallelism()
+        .map(|p| p.get() * 10)
+        .unwrap_or(64);
+    let (successes, failures) = 
+        applied_sntrup761x25519sha512_funcs_async_stress_test(
+            duration, 
+            num_clients
+        ).await;
+    let rate = successes as f64 / duration.as_secs_f64();
+    println!(
+        "[applied_sntrup761x25519_sha512_funcs_async_5s] {} successes, {} failures, {:.1} exchanges/sec ({} concurrent clients)",
+        successes, failures, rate, num_clients
     );
     assert!(successes > 0);
 }
