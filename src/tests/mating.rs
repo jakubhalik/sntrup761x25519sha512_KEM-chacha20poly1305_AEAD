@@ -16,6 +16,7 @@ use crate::crypto::post_quantum::sntrup761x25519_sha512::{
     server_encapsulate,
     client_decapsulate,
 };
+use crate::tprintln;
 
 const SNTRUP761_PK_SIZE: usize = 1158;
 const SNTRUP761_CT_SIZE: usize = 1039;
@@ -238,7 +239,7 @@ fn test_sync_single_exchange() {
     let server_secret = server.join().unwrap();
     assert_eq!(client_secret, server_secret);
     assert!(client_secret.iter().any(|&b| b != 0));
-    println!("[sync_single] secrets match: {:02x?}", &client_secret[..16]);
+    tprintln!("[sync_single] secrets match: {:02x?}", &client_secret[..16]);
 }
 
 #[tokio::test]
@@ -254,7 +255,7 @@ async fn test_async_single_exchange() {
     let server_secret = server.await.unwrap();
     assert_eq!(client_secret, server_secret);
     assert!(client_secret.iter().any(|&b| b != 0));
-    println!("[async_single] secrets match: {:02x?}", &client_secret[..16]);
+    tprintln!("[async_single] secrets match: {:02x?}", &client_secret[..16]);
 }
 
 #[test]
@@ -262,7 +263,7 @@ fn test_sync_stress_1_second() {
     let duration = Duration::from_secs(1);
     let (successes, failures) = sync_stress_test(duration);
     let rate = successes as f64 / duration.as_secs_f64();
-    println!(
+    tprintln!(
         "[sync_1s] {} successes, {} failures, {:.1} exchanges/sec (1 server thread, 1 client thread)",
         successes, failures, rate
     );
@@ -274,7 +275,7 @@ fn test_sync_stress_5_seconds() {
     let duration = Duration::from_secs(5);
     let (successes, failures) = sync_stress_test(duration);
     let rate = successes as f64 / duration.as_secs_f64();
-    println!(
+    tprintln!(
         "[sync_5s] {} successes, {} failures, {:.1} exchanges/sec (1 server thread, 1 client thread)",
         successes, failures, rate
     );
@@ -289,7 +290,7 @@ async fn test_async_stress_1_second() {
         .unwrap_or(64);
     let (successes, failures) = async_stress_test(duration, num_clients).await;
     let rate = successes as f64 / duration.as_secs_f64();
-    println!(
+    tprintln!(
         "[async_1s] {} successes, {} failures, {:.1} exchanges/sec ({} concurrent clients, 8 worker threads)",
         successes, failures, rate, num_clients
     );
@@ -304,7 +305,7 @@ async fn test_async_stress_5_seconds() {
         .unwrap_or(64);
     let (successes, failures) = async_stress_test(duration, num_clients).await;
     let rate = successes as f64 / duration.as_secs_f64();
-    println!(
+    tprintln!(
         "[async_5s] {} successes, {} failures, {:.1} exchanges/sec ({} concurrent clients, 8 worker threads)",
         successes, failures, rate, num_clients
     );
@@ -382,7 +383,7 @@ fn test_applied_sntrup761x25519_sha512_funcs_single_exchange() {
     let server_secret = server.join().unwrap();
     assert_eq!(client_secret, server_secret);
     assert!(client_secret.iter().any(|&b| b != 0));
-    println!("[applied_sntrup761x25519_sha512_funcs_single] secrets match: {:02x?}", &client_secret[..16]);
+    tprintln!("[applied_sntrup761x25519_sha512_funcs_single] secrets match: {:02x?}", &client_secret[..16]);
 }
 
 #[test]
@@ -390,7 +391,7 @@ fn test_applied_sntrup761x25519_sha512_funcs_stress_1_second() {
     let duration = Duration::from_secs(1);
     let (successes, failures) = applied_sntrup761x25519_sha512_funcs_stress_test(duration);
     let rate = successes as f64 / duration.as_secs_f64();
-    println!(
+    tprintln!(
         "[applied_sntrup761x25519_sha512_funcs_1s] {} successes, {} failures, {:.1} exchanges/sec",
         successes, failures, rate
     );
@@ -402,7 +403,7 @@ fn test_applied_sntrup761x25519_sha512_funcs_stress_5_seconds() {
     let duration = Duration::from_secs(5);
     let (successes, failures) = applied_sntrup761x25519_sha512_funcs_stress_test(duration);
     let rate = successes as f64 / duration.as_secs_f64();
-    println!(
+    tprintln!(
         "[applied_sntrup761x25519_sha512_funcs_5s] {} successes, {} failures, {:.1} exchanges/sec",
         successes, failures, rate
     );
@@ -485,7 +486,7 @@ async fn test_applied_sntrup761x25519_sha512_funcs_async_stress_1_second() {
             num_clients
         ).await;
     let rate = successes as f64 / duration.as_secs_f64();
-    println!(
+    tprintln!(
         "[applied_sntrup761x25519_sha512_funcs_async_1s] {} successes, {} failures, {:.1} exchanges/sec ({} concurrent clients)",
         successes, failures, rate, num_clients
     );
@@ -504,7 +505,7 @@ async fn test_applied_sntrup761x25519_sha512_funcs_async_stress_5_seconds() {
             num_clients
         ).await;
     let rate = successes as f64 / duration.as_secs_f64();
-    println!(
+    tprintln!(
         "[applied_sntrup761x25519_sha512_funcs_async_5s] {} successes, {} failures, {:.1} exchanges/sec ({} concurrent clients)",
         successes, failures, rate, num_clients
     );

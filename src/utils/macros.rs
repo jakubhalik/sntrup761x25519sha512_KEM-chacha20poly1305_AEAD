@@ -32,4 +32,14 @@ macro_rules! define_args {
         }
     };
 }
-
+#[macro_export]
+macro_rules! tprintln {
+    ($($arg:tt)*) => {
+        let msg = format!($($arg)*);
+        if let Some(end) = msg.find(']') {
+            println!("\x1b[36m{}\x1b[0m{}", &msg[..=end], &msg[end+1..]);
+        } else {
+            println!("{}", msg);
+        }
+    };
+}
