@@ -80,10 +80,12 @@ pub async fn server_encapsulate(
     stream: &mut TokioTcpStream,
     _debug: bool,
 ) -> Result<[u8; 64], String> {
-    let client_keys = receive_public_keys_async(stream, _debug).await?;
-    let (sntrup_shared_secret, sntrup_ciphertext) = tokio::task::spawn_blocking(move || {
-        sntrup761::encapsulate(&client_keys.sntrup_pk)
-    }).await.map_err(|e| e.to_string())?;
+    let client_keys = receive_public_keys(stream, _debug).await?;
+    let (sntrup_shared_secret, sntrup_ciphertext):
+        (sntrup761::SharedSecret, sntrup761::Ciphertext) =
+            tokio::task::spawn_blocking(move || {
+                sntrup761::encapsulate(&client_keys.sntrup_pk)
+            }).await.map_err(|e| e.to_string())?;
     let server_x25519_secret = EphemeralSecret::random_from_rng(OsRng);
     let server_x25519_public = X25519PublicKey::from(&server_x25519_secret);
     let x25519_shared_secret = server_x25519_secret.diffie_hellman(&client_keys.x25519_pk);
