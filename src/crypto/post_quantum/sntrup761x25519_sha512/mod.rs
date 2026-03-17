@@ -7,6 +7,8 @@ use pqcrypto_traits::kem::{
     SharedSecret as KemSharedSecret, 
     Ciphertext as KemCiphertext
 };
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::TcpStream as TokioTcpStream;
 use std::io::{Read, Write};
 use std::net::TcpStream;
 
@@ -59,44 +61,40 @@ fn combine_secrets(
     output
 }
 
-fn receive_public_keys(
-    stream: &mut TcpStream, 
+async fn receive_public_keys(
+    stream: &mut TokioTcpStream, 
     _debug: bool
 ) -> Result<ReceivedPublicKeys, String> {
-
     const SNTRUP761_PK_SIZE: usize = 1158;
     let mut sntrup_pk_bytes = vec![0u8; SNTRUP761_PK_SIZE];
-    stream.read_exact(&mut sntrup_pk_bytes).map_err(|e| e.to_string())?;
+    stream.read_exact(&mut sntrup_pk_bytes).await.map_err(|e| e.to_string())?;
     let mut x25519_pk_bytes = [0u8; 32];
-    stream.read_exact(&mut x25519_pk_bytes).map_err(|e| e.to_string())?;
+    stream.read_exact(&mut x25519_pk_bytes).await.map_err(|e| e.to_string())?;
     let sntrup_pk = sntrup761::PublicKey::from_bytes(&sntrup_pk_bytes)
         .map_err(|_| "Invalid sntrup761 public key")?;
     let x25519_pk = X25519PublicKey::from(x25519_pk_bytes);
     Ok(ReceivedPublicKeys { sntrup_pk, x25519_pk })
-
 }
 
-pub fn server_encapsulate(
-    stream: &mut TcpStream,
+pub async fn server_encapsulate(
+    stream: &mut TokioTcpStream,
     _debug: bool,
 ) -> Result<[u8; 64], String> {
-    let client_keys = receive_public_keys(stream, _debug)?;
-    let (sntrup_shared_secret, sntrup_ciphertext) = sntrup761::encapsulate(&client_keys.sntrup_pk);
+    let client_keys = receive_public_keys_async(stream, _debug).await?;
+    let (sntrup_shared_secret, sntrup_ciphertext) = tokio::task::spawn_blocking(move || {
+        sntrup761::encapsulate(&client_keys.sntrup_pk)
+    }).await.map_err(|e| e.to_string())?;
     let server_x25519_secret = EphemeralSecret::random_from_rng(OsRng);
     let server_x25519_public = X25519PublicKey::from(&server_x25519_secret);
     let x25519_shared_secret = server_x25519_secret.diffie_hellman(&client_keys.x25519_pk);
-    let sntrup_ciphertext_bytes = sntrup_ciphertext.as_bytes();
-    
-    stream.write_all(sntrup_ciphertext_bytes).map_err(|e| e.to_string())?;
-    stream.write_all(&server_x25519_public.to_bytes()).map_err(|e| e.to_string())?;
-    stream.flush().map_err(|e| e.to_string())?;
-    
-    let shared_secret = combine_secrets(
+    stream.write_all(sntrup_ciphertext.as_bytes()).await.map_err(|e| e.to_string())?;
+    stream.write_all(&server_x25519_public.to_bytes()).await.map_err(|e| e.to_string())?;
+    stream.flush().await.map_err(|e| e.to_string())?;
+    Ok(combine_secrets(
         sntrup_shared_secret.as_bytes(),
         x25519_shared_secret.as_bytes(),
         _debug
-    );
-    Ok(shared_secret)
+    ))
 }
 
 pub fn client_decapsulate(

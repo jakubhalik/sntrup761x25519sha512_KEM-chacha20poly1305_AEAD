@@ -75,23 +75,18 @@ async fn async_server_encapsulate(stream: &mut tokio::net::TcpStream) -> Result<
     stream.read_exact(&mut sntrup_pk_bytes).await.map_err(|e| e.to_string())?;
     let mut x25519_pk_bytes = [0u8; 32];
     stream.read_exact(&mut x25519_pk_bytes).await.map_err(|e| e.to_string())?;
-
     let sntrup_pk = sntrup761::PublicKey::from_bytes(&sntrup_pk_bytes)
         .map_err(|_| "Invalid sntrup761 public key".to_string())?;
     let x25519_pk = X25519PublicKey::from(x25519_pk_bytes);
-
     let (sntrup_ss, sntrup_ct) = tokio::task::spawn_blocking(move || {
         sntrup761::encapsulate(&sntrup_pk)
     }).await.map_err(|e| e.to_string())?;
-
     let server_x25519_secret = EphemeralSecret::random_from_rng(OsRng);
     let server_x25519_public = X25519PublicKey::from(&server_x25519_secret);
     let x25519_ss = server_x25519_secret.diffie_hellman(&x25519_pk);
-
     stream.write_all(sntrup_ct.as_bytes()).await.map_err(|e| e.to_string())?;
     stream.write_all(&server_x25519_public.to_bytes()).await.map_err(|e| e.to_string())?;
     stream.flush().await.map_err(|e| e.to_string())?;
-
     Ok(combine_secrets(sntrup_ss.as_bytes(), x25519_ss.as_bytes()))
 }
 
