@@ -32,14 +32,41 @@ macro_rules! define_args {
         }
     };
 }
+
 #[macro_export]
 macro_rules! tprintln {
     ($($arg:tt)*) => {
         let msg = format!($($arg)*);
-        if let Some(end) = msg.find(']') {
-            println!("\x1b[36m{}\x1b[0m{}", &msg[..=end], &msg[end+1..]);
+        let mut colored = String::new();
+        let mut chars = msg.chars().peekable();
+        while let Some(c) = chars.next() {
+            if c.is_ascii_digit() {
+                let mut num = String::from(c);
+                while let Some(&next) = chars.peek() {
+                    if next.is_ascii_digit() {
+                        num.push(chars.next().unwrap());
+                    } else {
+                        break;
+                    }
+                }
+                let remaining: String = chars.clone().collect();
+                if remaining.starts_with(" successes") {
+                    colored.push_str(&format!("\x1b[32m{} successes\x1b[0m", num));
+                    for _ in 0..10 { chars.next(); }
+                } else if remaining.starts_with(" failures") {
+                    colored.push_str(&format!("\x1b[31m{} failures\x1b[0m", num));
+                    for _ in 0..9 { chars.next(); }
+                } else {
+                    colored.push_str(&num);
+                }
+            } else {
+                colored.push(c);
+            }
+        }
+        if let Some(end) = colored.find(']') {
+            println!("\x1b[36m{}\x1b[0m{}", &colored[..=end], &colored[end+1..]);
         } else {
-            println!("{}", msg);
+            println!("{}", colored);
         }
     };
 }
