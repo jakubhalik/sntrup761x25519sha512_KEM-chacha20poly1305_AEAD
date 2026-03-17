@@ -3,4 +3,5 @@ testSequentially () {
 	cargo test --release -- --nocapture --test-threads=1 $@
 }
 testseq() {testSequentially $@}
+seqtest() {testSequentially $@}
 

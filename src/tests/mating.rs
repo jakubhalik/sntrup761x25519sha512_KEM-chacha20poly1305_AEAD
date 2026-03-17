@@ -312,6 +312,182 @@ async fn test_async_stress_5_seconds() {
     assert!(successes > 0);
 }
 
+#[test]
+fn test_single_mating_duration() {
+    let port = find_available_port();
+    let server = thread::spawn(move || {
+        let listener = StdTcpListener::bind(("127.0.0.1", port)).unwrap();
+        let (mut stream, _) = listener.accept().unwrap();
+        sync_server_encapsulate(&mut stream).unwrap()
+    });
+    thread::sleep(Duration::from_millis(50));
+    let start = Instant::now();
+    let mut stream = std::net::TcpStream::connect(("127.0.0.1", port)).unwrap();
+    let client_secret = sync_client_decapsulate(&mut stream).unwrap();
+    let elapsed = start.elapsed();
+    let server_secret = server.join().unwrap();
+    assert_eq!(client_secret, server_secret);
+    tprintln!("[single_mating] completed in {:?}", elapsed);
+}
+
+#[test]
+fn test_sync_1000_matings_stats() {
+    let port = find_available_port();
+    let shutdown = Arc::new(AtomicBool::new(false));
+    let shutdown_clone = shutdown.clone();
+    thread::spawn(move || {
+        let listener = StdTcpListener::bind(("127.0.0.1", port)).unwrap();
+        listener.set_nonblocking(true).unwrap();
+        while !shutdown_clone.load(Ordering::Relaxed) {
+            match listener.accept() {
+                Ok((mut stream, _)) => {
+                    stream.set_nonblocking(false).unwrap();
+                    let _ = sync_server_encapsulate(&mut stream);
+                }
+                Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                    thread::sleep(Duration::from_millis(1));
+                }
+                Err(_) => {}
+            }
+        }
+    });
+    thread::sleep(Duration::from_millis(50));
+    let mut durations = Vec::with_capacity(1000);
+    for _ in 0..1000 {
+        let mut stream = std::net::TcpStream::connect(("127.0.0.1", port)).unwrap();
+        let start = Instant::now();
+        let _ = sync_client_decapsulate(&mut stream).unwrap();
+        durations.push(start.elapsed());
+    }
+    shutdown.store(true, Ordering::Relaxed);
+    let total: Duration = durations.iter().sum();
+    let average = total / 1000;
+    let fastest = durations.iter().min().unwrap();
+    let slowest = durations.iter().max().unwrap();
+    tprintln!("[sync_1000] average: {:?}, fastest: {:?}, slowest: {:?}", average, fastest, slowest);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_async_10000_matings_stats() {
+    let listener = TokioTcpListener::bind("127.0.0.1:0").await.unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let shutdown = Arc::new(Notify::new());
+    let shutdown_clone = shutdown.clone();
+    tokio::spawn(async move {
+        loop {
+            tokio::select! {
+                result = listener.accept() => {
+                    if let Ok((mut stream, _)) = result {
+                        tokio::spawn(async move {
+                            let _ = async_server_encapsulate(&mut stream).await;
+                        });
+                    }
+                }
+                _ = shutdown_clone.notified() => { break; }
+            }
+        }
+    });
+    let num_clients = std::thread::available_parallelism()
+        .map(|p| p.get() * 10)
+        .unwrap_or(64);
+    let durations = Arc::new(std::sync::Mutex::new(Vec::with_capacity(10000)));
+    let completed = Arc::new(AtomicU64::new(0));
+    let mut handles = Vec::new();
+    for _ in 0..num_clients {
+        let durations = durations.clone();
+        let completed = completed.clone();
+        let handle = tokio::spawn(async move {
+            while completed.fetch_add(1, Ordering::Relaxed) < 10000 {
+                if let Ok(mut stream) = tokio::net::TcpStream::connect(("127.0.0.1", port)).await {
+                    let start = Instant::now();
+                    if async_client_decapsulate(&mut stream).await.is_ok() {
+                        durations.lock().unwrap().push(start.elapsed());
+                    }
+                }
+            }
+        });
+        handles.push(handle);
+    }
+    for handle in handles {
+        handle.await.unwrap();
+    }
+    shutdown.notify_one();
+    let durations = durations.lock().unwrap();
+    let count = durations.len() as u32;
+    let total: Duration = durations.iter().sum();
+    let average = total / count;
+    let fastest = durations.iter().min().unwrap();
+    let slowest = durations.iter().max().unwrap();
+    tprintln!("[async_10000] {} completed, average: {:?}, fastest: {:?}, slowest: {:?}", count, average, fastest, slowest);
+}
+
+async fn async_server_sync_clients_parallel(num_clients: usize) -> Duration {
+    let listener = TokioTcpListener::bind("127.0.0.1:0").await.unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let shutdown = Arc::new(Notify::new());
+    let shutdown_clone = shutdown.clone();
+    tokio::spawn(async move {
+        loop {
+            tokio::select! {
+                result = listener.accept() => {
+                    if let Ok((mut stream, _)) = result {
+                        tokio::spawn(async move {
+                            let _ = async_server_encapsulate(&mut stream).await;
+                        });
+                    }
+                }
+                _ = shutdown_clone.notified() => { break; }
+            }
+        }
+    });
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    let completed = Arc::new(AtomicU64::new(0));
+    let start = Instant::now();
+    let completed_logger = completed.clone();
+    let logger_shutdown = Arc::new(AtomicBool::new(false));
+    let logger_shutdown_clone = logger_shutdown.clone();
+    let num_clients_log = num_clients;
+    let logger = thread::spawn(move || {
+        while !logger_shutdown_clone.load(Ordering::Relaxed) {
+            let count = completed_logger.load(Ordering::Relaxed);
+            let elapsed = start.elapsed();
+            tprintln!("[progress] {} / {} mated in {:?}", count, num_clients_log, elapsed);
+            if count >= num_clients_log as u64 {
+                break;
+            }
+            thread::sleep(Duration::from_millis(100));
+        }
+    });
+    let mut handles = Vec::with_capacity(num_clients);
+    for _ in 0..num_clients {
+        let completed = completed.clone();
+        let handle = thread::spawn(move || {
+            let mut stream = std::net::TcpStream::connect(("127.0.0.1", port)).unwrap();
+            stream.set_read_timeout(Some(Duration::from_secs(30))).ok();
+            stream.set_write_timeout(Some(Duration::from_secs(30))).ok();
+            let _ = sync_client_decapsulate(&mut stream).unwrap();
+            completed.fetch_add(1, Ordering::Relaxed);
+        });
+        handles.push(handle);
+    }
+    for handle in handles {
+        handle.join().unwrap();
+    }
+    let total_elapsed = start.elapsed();
+    logger_shutdown.store(true, Ordering::Relaxed);
+    logger.join().unwrap();
+    shutdown.notify_one();
+    tprintln!("[async_server_{}_sync_clients] {} clients mated in {:?}", num_clients, num_clients, total_elapsed);
+    total_elapsed
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_async_server_n_sync_clients_parallel() {
+    async_server_sync_clients_parallel(1000).await;
+    async_server_sync_clients_parallel(10000).await;
+    async_server_sync_clients_parallel(100000).await;
+}
+
 // above are tests with functions implemented here so u can see the diffs between running diff
 // things tokio or single thread, below are agnostic tests of the reality, that apply the functions
 // from the actual sntrup761x25519_sha512/mod.rs that are ran by the program when u actually
@@ -510,181 +686,5 @@ async fn test_applied_sntrup761x25519_sha512_funcs_async_stress_5_seconds() {
         successes, failures, rate, num_clients
     );
     assert!(successes > 0);
-}
-
-#[test]
-fn test_single_mating_duration() {
-    let port = find_available_port();
-    let server = thread::spawn(move || {
-        let listener = StdTcpListener::bind(("127.0.0.1", port)).unwrap();
-        let (mut stream, _) = listener.accept().unwrap();
-        sync_server_encapsulate(&mut stream).unwrap()
-    });
-    thread::sleep(Duration::from_millis(50));
-    let start = Instant::now();
-    let mut stream = std::net::TcpStream::connect(("127.0.0.1", port)).unwrap();
-    let client_secret = sync_client_decapsulate(&mut stream).unwrap();
-    let elapsed = start.elapsed();
-    let server_secret = server.join().unwrap();
-    assert_eq!(client_secret, server_secret);
-    tprintln!("[single_mating] completed in {:?}", elapsed);
-}
-
-#[test]
-fn test_sync_1000_matings_stats() {
-    let port = find_available_port();
-    let shutdown = Arc::new(AtomicBool::new(false));
-    let shutdown_clone = shutdown.clone();
-    thread::spawn(move || {
-        let listener = StdTcpListener::bind(("127.0.0.1", port)).unwrap();
-        listener.set_nonblocking(true).unwrap();
-        while !shutdown_clone.load(Ordering::Relaxed) {
-            match listener.accept() {
-                Ok((mut stream, _)) => {
-                    stream.set_nonblocking(false).unwrap();
-                    let _ = sync_server_encapsulate(&mut stream);
-                }
-                Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
-                    thread::sleep(Duration::from_millis(1));
-                }
-                Err(_) => {}
-            }
-        }
-    });
-    thread::sleep(Duration::from_millis(50));
-    let mut durations = Vec::with_capacity(1000);
-    for _ in 0..1000 {
-        let mut stream = std::net::TcpStream::connect(("127.0.0.1", port)).unwrap();
-        let start = Instant::now();
-        let _ = sync_client_decapsulate(&mut stream).unwrap();
-        durations.push(start.elapsed());
-    }
-    shutdown.store(true, Ordering::Relaxed);
-    let total: Duration = durations.iter().sum();
-    let average = total / 1000;
-    let fastest = durations.iter().min().unwrap();
-    let slowest = durations.iter().max().unwrap();
-    tprintln!("[sync_1000] average: {:?}, fastest: {:?}, slowest: {:?}", average, fastest, slowest);
-}
-
-#[tokio::test(flavor = "multi_thread")]
-async fn test_async_10000_matings_stats() {
-    let listener = TokioTcpListener::bind("127.0.0.1:0").await.unwrap();
-    let port = listener.local_addr().unwrap().port();
-    let shutdown = Arc::new(Notify::new());
-    let shutdown_clone = shutdown.clone();
-    tokio::spawn(async move {
-        loop {
-            tokio::select! {
-                result = listener.accept() => {
-                    if let Ok((mut stream, _)) = result {
-                        tokio::spawn(async move {
-                            let _ = async_server_encapsulate(&mut stream).await;
-                        });
-                    }
-                }
-                _ = shutdown_clone.notified() => { break; }
-            }
-        }
-    });
-    let num_clients = std::thread::available_parallelism()
-        .map(|p| p.get() * 10)
-        .unwrap_or(64);
-    let durations = Arc::new(std::sync::Mutex::new(Vec::with_capacity(10000)));
-    let completed = Arc::new(AtomicU64::new(0));
-    let mut handles = Vec::new();
-    for _ in 0..num_clients {
-        let durations = durations.clone();
-        let completed = completed.clone();
-        let handle = tokio::spawn(async move {
-            while completed.fetch_add(1, Ordering::Relaxed) < 10000 {
-                if let Ok(mut stream) = tokio::net::TcpStream::connect(("127.0.0.1", port)).await {
-                    let start = Instant::now();
-                    if async_client_decapsulate(&mut stream).await.is_ok() {
-                        durations.lock().unwrap().push(start.elapsed());
-                    }
-                }
-            }
-        });
-        handles.push(handle);
-    }
-    for handle in handles {
-        handle.await.unwrap();
-    }
-    shutdown.notify_one();
-    let durations = durations.lock().unwrap();
-    let count = durations.len() as u32;
-    let total: Duration = durations.iter().sum();
-    let average = total / count;
-    let fastest = durations.iter().min().unwrap();
-    let slowest = durations.iter().max().unwrap();
-    tprintln!("[async_10000] {} completed, average: {:?}, fastest: {:?}, slowest: {:?}", count, average, fastest, slowest);
-}
-
-async fn async_server_sync_clients_parallel(num_clients: usize) -> Duration {
-    let listener = TokioTcpListener::bind("127.0.0.1:0").await.unwrap();
-    let port = listener.local_addr().unwrap().port();
-    let shutdown = Arc::new(Notify::new());
-    let shutdown_clone = shutdown.clone();
-    tokio::spawn(async move {
-        loop {
-            tokio::select! {
-                result = listener.accept() => {
-                    if let Ok((mut stream, _)) = result {
-                        tokio::spawn(async move {
-                            let _ = async_server_encapsulate(&mut stream).await;
-                        });
-                    }
-                }
-                _ = shutdown_clone.notified() => { break; }
-            }
-        }
-    });
-    tokio::time::sleep(Duration::from_millis(50)).await;
-    let completed = Arc::new(AtomicU64::new(0));
-    let start = Instant::now();
-    let completed_logger = completed.clone();
-    let logger_shutdown = Arc::new(AtomicBool::new(false));
-    let logger_shutdown_clone = logger_shutdown.clone();
-    let num_clients_log = num_clients;
-    let logger = thread::spawn(move || {
-        while !logger_shutdown_clone.load(Ordering::Relaxed) {
-            let count = completed_logger.load(Ordering::Relaxed);
-            let elapsed = start.elapsed();
-            tprintln!("[progress] {} / {} mated in {:?}", count, num_clients_log, elapsed);
-            if count >= num_clients_log as u64 {
-                break;
-            }
-            thread::sleep(Duration::from_millis(100));
-        }
-    });
-    let mut handles = Vec::with_capacity(num_clients);
-    for _ in 0..num_clients {
-        let completed = completed.clone();
-        let handle = thread::spawn(move || {
-            let mut stream = std::net::TcpStream::connect(("127.0.0.1", port)).unwrap();
-            stream.set_read_timeout(Some(Duration::from_secs(30))).ok();
-            stream.set_write_timeout(Some(Duration::from_secs(30))).ok();
-            let _ = sync_client_decapsulate(&mut stream).unwrap();
-            completed.fetch_add(1, Ordering::Relaxed);
-        });
-        handles.push(handle);
-    }
-    for handle in handles {
-        handle.join().unwrap();
-    }
-    let total_elapsed = start.elapsed();
-    logger_shutdown.store(true, Ordering::Relaxed);
-    logger.join().unwrap();
-    shutdown.notify_one();
-    tprintln!("[async_server_{}_sync_clients] {} clients mated in {:?}", num_clients, num_clients, total_elapsed);
-    total_elapsed
-}
-
-#[tokio::test(flavor = "multi_thread")]
-async fn test_async_server_n_sync_clients_parallel() {
-    async_server_sync_clients_parallel(1000).await;
-    async_server_sync_clients_parallel(10000).await;
-    async_server_sync_clients_parallel(100000).await;
 }
 
