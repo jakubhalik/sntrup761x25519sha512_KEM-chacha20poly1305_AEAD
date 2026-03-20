@@ -23,4 +23,5 @@ Strictly to be written in a way where u acronymishly abbreviate only if it is a 
 I am interested in this project being readable to programmers, not only the ones from them who already know that rq stands for ring element bytes or only mathematicians who know that fq oBvIoUslY stands for finite field element oF cOurSe or someshit -_-
 
 none the less every crypto impl will have a .tex file with the concise math that that crypto impl should be sort of doin, u can pdftex <file> that one for help with dev/wanting to understand
+with all said u obviously have to know networking lingo and what things like sntrup761, x25519, sha512, argon2id etc. are...
 
