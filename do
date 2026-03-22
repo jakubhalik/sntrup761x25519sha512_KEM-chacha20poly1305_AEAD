@@ -118,3 +118,8 @@ where what will be the first val each time will be stringified key in the struct
 
   one problem, u r making plaintext and data size in encrypt and decrypt u8, but encrypt and decrypt are agnostic to the test mess func, the encrypt and decrypt plaintext/data max size should be a size that is most efficient to be used in ssh for data transmission to encrypt and decrypt each time in a stream, sometimes a packet will be super small, just a few bytes, sometimes tho a 4k video will be streamed through it, the mess_test_without_auth is where the u8 should be explicitly
   
+    lets change the client func to not only encrypt the message but also before the message to be the arg so the traffic is who has implemented the decryption and reads the arg, and does similar macro logic to dispatch_traffic where it then runs the server func of the same file name from traffic dir or eprintlns! that the arg does not match any traffic server func and have the server func in mess_test_without_auth not do any decryption but just checking being passed the message data only and checkin that it is max MAX_MESSAGE_LEN and runs 
+    validate_safe_text(&text)?;
+    println!("[mess_test_without_auth] {}", text);
+    Ok(())
+

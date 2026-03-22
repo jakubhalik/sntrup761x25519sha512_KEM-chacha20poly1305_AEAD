@@ -54,7 +54,7 @@ pub fn client(
     Ok(())
 }
 
-pub async fn server_receive(
+pub async fn server(
     stream: &mut TokioTcpStream,
     shared_secret: &[u8; 64],
 ) -> Result<(), String> {

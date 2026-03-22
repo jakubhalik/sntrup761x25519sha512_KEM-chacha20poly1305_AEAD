@@ -11,7 +11,7 @@ async fn initiate_server(
         Ok(_shared_secret) => {
             let peer = stream.peer_addr().unwrap();
             println!("{peer} sntrup761x25519_sha512 mated with me");
-            traffic();
+            traffic(&mut stream, &_shared_secret);
         }
         Err(e) => {
             eprintln!("Key exchange failed: {}", e);

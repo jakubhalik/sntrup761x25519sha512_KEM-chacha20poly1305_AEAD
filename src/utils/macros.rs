@@ -47,7 +47,11 @@ macro_rules! dispatch_traffic {
                             $shared_secret, 
                             value.as_deref().unwrap_or("")
                         ) {
-                            eprintln!("[{}] failed: {}", stringify!($func_name), e);
+                            eprintln!(
+                                "[{}] failed: {}",
+                                stringify!($func_name), 
+                                e
+                            );
                         }
                     }
                 )*
