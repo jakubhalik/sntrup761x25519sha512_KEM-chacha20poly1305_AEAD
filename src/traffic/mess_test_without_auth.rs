@@ -8,6 +8,9 @@ use crate::crypto::post_quantum::chacha20poly1305::{
 
 const MAX_MESSAGE_LEN: usize = u8::MAX as usize;
 fn validate_safe_text(text: &str) -> Result<(), String> {
+    if text.is_empty() {
+        return Err("Message is empty".to_string());
+    }
     if text.len() > MAX_MESSAGE_LEN {
         return Err(format!(
             "Message too long: {} bytes (max {})",
@@ -15,27 +18,8 @@ fn validate_safe_text(text: &str) -> Result<(), String> {
             MAX_MESSAGE_LEN
         ));
     }
-    if text.is_empty() {
-        return Err("Message is empty".to_string());
-    }
-    for (i, c) in text.chars().enumerate() {
-        if c.is_control() && c != ' ' {
-            return Err(format!(
-                "Disallowed control character at position {}: U+{:04X}",
-                i,
-                c as u32
-            ));
-        }
-        match c {
-            ';' | '|' | '&' | '`' | '$' | '\\' | '\'' | '"'
-            | '<' | '>' | '{' | '}' | '\0' | '\n' | '\r' | '\t' => {
-                return Err(format!(
-                    "Disallowed character '{}' at position {}",
-                    c, i
-                ));
-            }
-            _ => {}
-        }
+    if text.chars().any(|c| c.is_control()) {
+        return Err("Control characters are not allowed".to_string());
     }
     Ok(())
 }
@@ -54,30 +38,15 @@ pub fn client(
     Ok(())
 }
 
-pub async fn server(
-    stream: &mut TokioTcpStream,
-    shared_secret: &[u8; 64],
-) -> Result<(), String> {
-    const SECURITY_TAG_SIZE: usize = 16;
-    let key = symm_key_from_shared_secret(shared_secret);
-    let mut len_bytes = [0u8; 4];
-    stream
-        .read_exact(&mut len_bytes)
-        .await
-        .map_err(|e| e.to_string())?;
-    let len = u32::from_be_bytes(len_bytes) as usize;
-    if len > MAX_MESSAGE_LEN + NONCE_SIZE + SECURITY_TAG_SIZE {
-        return Err(format!("Incoming payload too large: {} bytes", len));
+pub fn server(text: &str) -> Result<(), String> {
+    if text.len() > MAX_MESSAGE_LEN {
+        return Err(format!(
+            "Message too long: {} bytes (max {})",
+            text.len(),
+            MAX_MESSAGE_LEN
+        ));
     }
-    let mut encrypted = vec![0u8; len];
-    stream
-        .read_exact(&mut encrypted)
-        .await
-        .map_err(|e| e.to_string())?;
-    let plaintext_bytes = decrypt(&key, &encrypted)?;
-    let text = String::from_utf8(plaintext_bytes)
-        .map_err(|_| "Decrypted data is not valid UTF-8".to_string())?;
-    validate_safe_text(&text)?;
+    validate_safe_text(text)?;
     println!("[mess_test_without_auth] {}", text);
     Ok(())
 }
