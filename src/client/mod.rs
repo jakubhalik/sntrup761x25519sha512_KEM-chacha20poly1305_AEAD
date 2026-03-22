@@ -46,10 +46,16 @@ fn parse_args() -> Vec<(String, Option<String>)> {
     arguments
 }
 
-fn run_logic_based_on_args() {
+fn run_logic_based_on_args(
+    stream: &mut TcpStream,
+    shared_secret: &[u8; 64],
+    debug: bool
+) {
     let args = parse_args();
-    println!("{:?}", args);
-    //macro run functions from the traffic dir that have the same name as is the name of the key in the Args struct
+    dprintln!("{:?}", args);
+    dispatch_traffic!(args, stream, shared_secret, {
+        mess_test_without_auth => crate::traffic::mess_test_without_auth,
+    });
 }
 
 pub fn run(
@@ -73,7 +79,9 @@ pub fn run(
     ) {
         Ok(_shared_secret) => {
             dprintln!(debug, "sntrup761x25519_sha512 mated with {}", port);
-            run_logic_based_on_args();
+            run_logic_based_on_args(
+                &mut stream, &shared_secret, debug
+            );
         }
         Err(e) => {
             dprintln!(debug, "[client] Key exchange failed: {}", e);

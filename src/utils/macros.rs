@@ -32,6 +32,32 @@ macro_rules! define_args {
         }
     };
 }
+#[macro_export]
+macro_rules! dispatch_traffic {
+    ($args:expr, $stream:expr, $shared_secret:expr, {
+        $($func_name:ident => $module:path),* $(,)?
+    }) => {
+        for (key, value) in $args.iter() {
+            match key.as_str() {
+                $(
+                    stringify!($func_name) => {
+                        use $module as _mod;
+                        if let Err(e) = _mod::client_send(
+                            $stream, 
+                            $shared_secret, 
+                            value.as_deref().unwrap_or("")
+                        ) {
+                            eprintln!("[{}] failed: {}", stringify!($func_name), e);
+                        }
+                    }
+                )*
+                other => {
+                    eprintln!("[dispatch] unknown traffic arg: {}", other);
+                }
+            }
+        }
+    };
+}
 
 #[macro_export]
 macro_rules! tprintln {
