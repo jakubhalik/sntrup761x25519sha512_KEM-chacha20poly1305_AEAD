@@ -12,6 +12,7 @@ macro_rules! zeroize_all {
         $($var.zeroize();)+
     }};
 }
+
 #[macro_export]
 macro_rules! define_args {
     ($($name:ident: $aliases:expr),* $(,)?) => {
@@ -32,8 +33,9 @@ macro_rules! define_args {
         }
     };
 }
+
 #[macro_export]
-macro_rules! dispatch_traffic {
+macro_rules! dispatch_client_traffic {
     ($args:expr, $stream:expr, $shared_secret:expr, {
         $($func_name:ident => $module:path),* $(,)?
     }) => {
@@ -58,6 +60,34 @@ macro_rules! dispatch_traffic {
                 other => {
                     eprintln!("[dispatch] unknown traffic arg: {}", other);
                 }
+            }
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! dispatch_server_traffic {
+    ($arg:expr, $message:expr, {
+        $($func_name:ident => $module:path),* $(,)?
+    }) => {
+        match $arg {
+            $(
+                stringify!($func_name) => {
+                    use $module as _mod;
+                    if let Err(e) = _mod::server($message) {
+                        eprintln!(
+                            "[{}::server] failed: {}",
+                            stringify!($func_name),
+                            e
+                        );
+                    }
+                }
+            )*
+            other => {
+                eprintln!(
+                    "[server traffic] unknown traffic arg: {}",
+                    other
+                );
             }
         }
     };
