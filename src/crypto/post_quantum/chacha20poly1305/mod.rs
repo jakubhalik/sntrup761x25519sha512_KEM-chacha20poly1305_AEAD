@@ -6,7 +6,7 @@ use rand::RngCore;
 use rand::rngs::OsRng;
 //nonce=number only once
 const KEY_SIZE: usize = 32;
-const NONCE_SIZE: usize = 12;
+pub const NONCE_SIZE: usize = 12;
 
 pub fn symm_key_from_shared_secret(
     shared_secret: &[u8; 64]
@@ -15,6 +15,7 @@ pub fn symm_key_from_shared_secret(
     key.copy_from_slice(&shared_secret[..KEY_SIZE]);
     key
 }
+
 pub fn encrypt(
     key_bytes: &[u8; KEY_SIZE],
     plaintext: &[u8]
@@ -32,7 +33,6 @@ pub fn encrypt(
     output.extend_from_slice(&ciphertext);
     Ok(output)
 }
-
 pub fn decrypt(
     key_bytes: &[u8; KEY_SIZE], 
     data: &[u8]

@@ -42,7 +42,7 @@ macro_rules! dispatch_traffic {
                 $(
                     stringify!($func_name) => {
                         use $module as _mod;
-                        if let Err(e) = _mod::client_send(
+                        if let Err(e) = _mod::client(
                             $stream, 
                             $shared_secret, 
                             value.as_deref().unwrap_or("")

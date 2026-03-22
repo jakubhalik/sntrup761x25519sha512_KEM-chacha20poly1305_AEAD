@@ -3,10 +3,10 @@ use std::net::TcpStream;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream as TokioTcpStream;
 use crate::crypto::post_quantum::chacha20poly1305::{
-    symm_key_from_shared_secret, encrypt, decrypt,
+    symm_key_from_shared_secret, encrypt, decrypt, NONCE_SIZE
 };
 
-const MAX_MESSAGE_LEN: usize = 255;
+const MAX_MESSAGE_LEN: usize = u8::MAX as usize;
 fn validate_safe_text(text: &str) -> Result<(), String> {
     if text.len() > MAX_MESSAGE_LEN {
         return Err(format!(
@@ -40,7 +40,7 @@ fn validate_safe_text(text: &str) -> Result<(), String> {
     Ok(())
 }
 
-pub fn client_send(
+pub fn client(
     stream: &mut TcpStream,
     shared_secret: &[u8; 64],
     message: &str,
@@ -58,6 +58,7 @@ pub async fn server_receive(
     stream: &mut TokioTcpStream,
     shared_secret: &[u8; 64],
 ) -> Result<(), String> {
+    const SECURITY_TAG_SIZE: usize = 16;
     let key = symm_key_from_shared_secret(shared_secret);
     let mut len_bytes = [0u8; 4];
     stream
@@ -65,7 +66,7 @@ pub async fn server_receive(
         .await
         .map_err(|e| e.to_string())?;
     let len = u32::from_be_bytes(len_bytes) as usize;
-    if len > MAX_MESSAGE_LEN + 12 + 16 + 64 {
+    if len > MAX_MESSAGE_LEN + NONCE_SIZE + SECURITY_TAG_SIZE {
         return Err(format!("Incoming payload too large: {} bytes", len));
     }
     let mut encrypted = vec![0u8; len];
