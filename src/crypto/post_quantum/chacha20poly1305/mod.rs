@@ -33,6 +33,7 @@ pub fn encrypt(
     output.extend_from_slice(&ciphertext);
     Ok(output)
 }
+
 pub fn decrypt(
     key_bytes: &[u8; KEY_SIZE], 
     data: &[u8]
@@ -47,4 +48,34 @@ pub fn decrypt(
     cipher
         .decrypt(nonce, ciphertext)
         .map_err(|e| format!("Decryption failed: {}", e))
+}
+
+pub fn build_encrypt_send(
+    stream: &mut TcpStream,
+    shared_secret: &[u8; 64],
+    traffic_name: &str,
+    message: &str,
+) -> Result<(), String> {
+
+    let traffic_name_bytes = traffic_name.as_bytes();
+    if traffic_name_bytes.len() > u8::MAX as usize {
+        return Err("Traffic name too long".to_string());
+    }
+
+    let mut plaintext = Vec::with_capacity(
+        1 + traffic_name_bytes.len() + message.len()
+    );
+    plaintext.push(traffic_name_bytes.len() as u8);
+    plaintext.extend_from_slice(traffic_name_bytes);
+    plaintext.extend_from_slice(message.as_bytes());
+
+    let key = symm_key_from_shared_secret(shared_secret);
+    let encrypted = encrypt(&key, &plaintext.as_bytes())?;
+    let len = (encrypted.len() as u32).to_be_bytes();
+    stream.write_all(&len).map_err(|e| e.to_string())?;
+    stream.write_all(&encrypted).map_err(|e| e.to_string())?;
+    stream.flush().map_err(|e| e.to_string())?;
+
+    Ok(())
+
 }
