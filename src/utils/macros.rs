@@ -47,6 +47,7 @@ macro_rules! dispatch_client_traffic {
                         if let Err(e) = _mod::client(
                             $stream, 
                             $shared_secret, 
+                            stringify!($func_name),
                             value.as_deref().unwrap_or("")
                         ) {
                             eprintln!(

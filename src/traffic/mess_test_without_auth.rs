@@ -27,8 +27,24 @@ fn validate_safe_text(text: &str) -> Result<(), String> {
 pub fn client(
     stream: &mut TcpStream,
     shared_secret: &[u8; 64],
+    traffic_name: &str,
     message: &str,
 ) -> Result<(), String> {
+
+    validate_safe_text(message)?;
+
+    let traffic_name_bytes = traffic_name.as_bytes();
+    if traffic_name_bytes.len() > u8::MAX as usize {
+        return Err("Traffic name too long".to_string());
+    }
+
+    let mut plaintext = Vec::with_capacity(
+        1 + traffic_name_bytes.len() + message.len()
+    );
+    plaintext.push(traffic_name_bytes.len() as u8);
+    plaintext.extend_from_slice(traffic_name_bytes);
+    plaintext.extend_from_slice(message.as_bytes());
+
     let key = symm_key_from_shared_secret(shared_secret);
     let encrypted = encrypt(&key, message.as_bytes())?;
     let len = (encrypted.len() as u32).to_be_bytes();

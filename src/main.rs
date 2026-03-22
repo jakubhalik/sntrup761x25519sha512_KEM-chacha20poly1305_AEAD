@@ -6,6 +6,7 @@ mod utils;
 mod compilation;
 mod client;
 mod server;
+mod traffic;
 #[cfg(test)]
 mod tests;
 
