@@ -51,11 +51,14 @@ fn run_logic_based_on_args(
     shared_secret: &[u8; 64],
     debug: bool
 ) {
+
     let args = parse_args();
     dprintln!(debug, "{:?}", args);
-    dispatch_client_traffic!(args, stream, shared_secret, {
-        mess_test_without_auth => crate::traffic::mess_test_without_auth,
-    });
+    let args_handler = Args::new();
+    args_handler.dispatch_client_traffic(
+        &args, stream, shared_secret
+    );
+
 }
 
 pub fn run(

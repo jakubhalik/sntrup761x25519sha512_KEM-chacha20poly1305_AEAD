@@ -53,8 +53,10 @@ async fn read_decrypt_and_dispatch(
         .map_err(|_| "Traffic name is not valid UTF-8".to_string())?;
     let message = std::str::from_utf8(message_bytes)
         .map_err(|_| "Traffic message is not valid UTF-8".to_string())?;
-    dispatch_server_traffic!(arg, message, {
-        mess_test_without_auth => crate::traffic::mess_test_without_auth,
-    });
+
+    let arg_name = String::from_utf8_lossy(&plaintext_bytes[1..1 + arg_len]);
+    let msg_bytes = &plaintext_bytes[1 + arg_len..];
+    crate::client::args::Args::route_server(&arg_name, msg_bytes);
+
     Ok(())
 }

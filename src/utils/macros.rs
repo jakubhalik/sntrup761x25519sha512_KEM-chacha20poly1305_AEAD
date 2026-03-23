@@ -14,82 +14,85 @@ macro_rules! zeroize_all {
 }
 
 #[macro_export]
-macro_rules! define_args {
+macro_rules! define_args_and_dispatchers {
+
     ($($name:ident: $aliases:expr),* $(,)?) => {
+
         pub struct Args {
             $(pub $name: &'static [&'static str],)*
         }
+
         impl Args {
+
             pub fn new() -> Self {
                 Args {
                     $($name: $aliases,)*
                 }
             }
+
             pub fn arg_map(&self) -> Vec<(&'static str, &'static [&'static str])> {
                 vec![
                     $((stringify!($name), self.$name),)*
                 ]
             }
-        }
-    };
-}
 
-#[macro_export]
-macro_rules! dispatch_client_traffic {
-    ($args:expr, $stream:expr, $shared_secret:expr, {
-        $($func_name:ident => $module:path),* $(,)?
-    }) => {
-        for (key, value) in $args.iter() {
-            match key.as_str() {
-                $(
-                    stringify!($func_name) => {
-                        use $module as _mod;
-                        if let Err(e) = _mod::client(
-                            $stream, 
-                            $shared_secret, 
-                            stringify!($func_name),
-                            value.as_deref().unwrap_or("")
-                        ) {
-                            eprintln!(
-                                "[{}] failed: {}",
-                                stringify!($func_name), 
-                                e
-                            );
+            pub fn dispatch_client_traffic(
+                &self,
+                parsed_args: &[(String, Option<String>)],
+                stream: &mut std::net::TcpStream,
+                shared_secret: &[u8; 64],
+            ) {
+                for (key, value) in parsed_args {
+                    match key.as_str() {
+                        $(
+                            stringify!($name) => {
+                                if let Err(e) = crate::traffic::$name::client(
+                                    stream,
+                                    shared_secret,
+                                    stringify!($name),
+                                    value.as_deref().unwrap_or("")
+                                ) {
+                                    eprintln!(
+                                        "[client][{}] failed: {}",
+                                        stringify!($name),
+                                        e
+                                    );
+                                }
+                            }
+                        )*
+                        _ => {}
+                    }
+                }
+            }
+
+            pub fn dispatch_server_traffic(
+                arg_name: &str,
+                msg_bytes: &[u8],
+            ) {
+                match arg_name {
+                    $(
+                        stringify!($name) => {
+                            if let Err(e) = 
+
+                                crate::traffic::$name::server(
+                                    msg_bytes
+                                ) {
+
+                                    eprintln!(
+                                        "[server][{}] failed: {}", 
+                                        stringify!($name), 
+                                        e
+                                    );
+
+                                }
                         }
+                    )*
+                    other => {
+                        eprintln!("[server][dispatch] unknown traffic arg: {}", other);
                     }
-                )*
-                other => {
-                    eprintln!("[dispatch] unknown traffic arg: {}", other);
                 }
             }
-        }
-    };
-}
 
-#[macro_export]
-macro_rules! dispatch_server_traffic {
-    ($arg:expr, $message:expr, {
-        $($func_name:ident => $module:path),* $(,)?
-    }) => {
-        match $arg {
-            $(
-                stringify!($func_name) => {
-                    use $module as _mod;
-                    if let Err(e) = _mod::server($message) {
-                        eprintln!(
-                            "[{}::server] failed: {}",
-                            stringify!($func_name),
-                            e
-                        );
-                    }
-                }
-            )*
-            other => {
-                eprintln!(
-                    "[server traffic] unknown traffic arg: {}",
-                    other
-                );
-            }
         }
     };
 }

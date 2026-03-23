@@ -129,3 +129,5 @@ where what will be the first val each time will be stringified key in the struct
    I am harcoding         mess_test_without_auth => crate::traffic::mess_test_without_auth,
    there, what I wanted was the macro to be able to do this on its own with knowing the arguments <arg> => crate::traffic::<arg> , so the client/mod.rs does not need to be changed everytime I add a new arg in the defined args and a file in traffic with the same name and a client func
 
+  will running define_args_and_dispatchers! via using args_map and overall args crate in client be enough for the funcs it compile time gens to be also applied for the client?
+
