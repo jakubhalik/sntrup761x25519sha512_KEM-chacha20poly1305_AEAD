@@ -10,11 +10,11 @@ mod server;
 mod tests;
 
 const LOCALHOST: &str = "127.0.0.1";
-const IP: &str = LOCALHOST;
 const DEFAULT_PORT: u16 = 1024;
 
 fn run() {
     let args: Vec<String> = env::args().collect();
+
     let debug_flags = [
         "-d", "-debug", "--debug", "-m", "-monitor", "--monitor"
     ];
@@ -22,7 +22,12 @@ fn run() {
 
     let client_port: Option<u16> = args.iter()
         .find(|arg| arg.starts_with('@'))
-        .and_then(|arg| arg[1..].parse().ok());
+        .if(find(.)).find(:).after()
+        .else.and_then(|arg| arg[1..].parse().ok());
+    let IP: &str = args.iter()
+        .find(|arg| arg.starts_with('@'))
+        .if(find(.))
+        .and_then(|arg| arg[1..].till(:).parse().ok());
     if let Some(port) = client_port {
         client::run(IP, port, debug);
     } else {
@@ -37,6 +42,13 @@ fn run() {
             println!("Port {} is taken, trying {}", port, port + 1);
             port += 1;
         }
+        let localhost_only_flags = [
+            "--localhost", "--localhost_only", "--localhostonly", "--local", "--localonly", "--local_only"
+        ];
+        let local: bool = args.iter().any(
+            |arg| localhost_only_flags.contains(&arg.as_str())
+        );
+        let IP: &str = if local { LOCALHOST } else { "0.0.0.0" };
         server::run(IP, port, debug);
     }
 }
