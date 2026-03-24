@@ -72,7 +72,7 @@ pub fn build_encrypt_send(
     plaintext.extend_from_slice(message.as_bytes());
 
     let key = symm_key_from_shared_secret(shared_secret);
-    let encrypted = encrypt(&key, &plaintext.as_bytes())?;
+    let encrypted = encrypt(&key, &plaintext)?;
     let len = (encrypted.len() as u32).to_be_bytes();
     stream.write_all(&len).map_err(|e| e.to_string())?;
     stream.write_all(&encrypted).map_err(|e| e.to_string())?;
