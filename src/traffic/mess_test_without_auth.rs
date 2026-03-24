@@ -1,14 +1,5 @@
-use std::io::{Read, Write};
 use std::net::TcpStream;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::TcpStream as TokioTcpStream;
-use crate::crypto::post_quantum::chacha20poly1305::{
-    symm_key_from_shared_secret, 
-    encrypt, 
-    decrypt, 
-    build_encrypt_send, 
-    NONCE_SIZE
-};
+use crate::crypto::post_quantum::chacha20poly1305::{build_encrypt_send};
 
 const MAX_MESSAGE_LEN: usize = u8::MAX as usize;
 fn validate_safe_text(text: &str) -> Result<(), String> {

@@ -4,6 +4,8 @@ use chacha20poly1305::{
 };
 use rand::RngCore;
 use rand::rngs::OsRng;
+use tokio::net::TcpStream;
+use tokio::io::AsyncWriteExt;
 //nonce=number only once
 const KEY_SIZE: usize = 32;
 pub const NONCE_SIZE: usize = 12;
@@ -51,7 +53,7 @@ pub fn decrypt(
 }
 
 pub fn build_encrypt_send(
-    stream: &mut TcpStream,
+    stream: &mut TcpStream | TokioTcpStream,
     shared_secret: &[u8; 64],
     traffic_name: &str,
     message: &str,

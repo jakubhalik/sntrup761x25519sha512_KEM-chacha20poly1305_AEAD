@@ -3,7 +3,6 @@ use tokio::net::TcpStream;
 use crate::crypto::post_quantum::chacha20poly1305::{
     decrypt, symm_key_from_shared_secret,
 };
-use crate::traffic::mess_test_without_auth;
 
 pub async fn traffic(
     stream: &mut TcpStream,

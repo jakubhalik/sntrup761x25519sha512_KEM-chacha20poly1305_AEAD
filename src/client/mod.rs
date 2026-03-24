@@ -80,7 +80,7 @@ pub fn run(
         keypair, 
         debug
     ) {
-        Ok(_shared_secret) => {
+        Ok(shared_secret) => {
             dprintln!(debug, "sntrup761x25519_sha512 mated with {}", port);
             run_logic_based_on_args(
                 &mut stream, &shared_secret, debug

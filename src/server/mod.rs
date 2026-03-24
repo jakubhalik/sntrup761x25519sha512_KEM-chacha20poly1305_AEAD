@@ -2,16 +2,17 @@ use tokio::net::{TcpListener, TcpStream};
 use crate::dprintln;
 use crate::crypto::post_quantum::sntrup761x25519_sha512::server_encapsulate;
 mod traffic;
+use crate::server::traffic::traffic;
 
 async fn initiate_server(
     mut stream: TcpStream, 
     debug: bool
 ) {
     match server_encapsulate(&mut stream, debug).await {
-        Ok(_shared_secret) => {
+        Ok(shared_secret) => {
             let peer = stream.peer_addr().unwrap();
             println!("{peer} sntrup761x25519_sha512 mated with me");
-            traffic(&mut stream, &_shared_secret);
+            traffic(&mut stream, &shared_secret);
         }
         Err(e) => {
             eprintln!("Key exchange failed: {}", e);

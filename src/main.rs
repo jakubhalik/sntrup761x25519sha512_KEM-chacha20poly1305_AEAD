@@ -1,12 +1,11 @@
 use std::env;
 use std::net::TcpListener;
-#[path = "crypto/mod.rs"]
+mod compilation;
 mod crypto;
 mod utils;
-mod compilation;
+mod traffic;
 mod client;
 mod server;
-mod traffic;
 #[cfg(test)]
 mod tests;
 
