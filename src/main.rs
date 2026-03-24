@@ -20,17 +20,33 @@ fn run() {
     ];
     let debug: bool = args.iter().any(|arg| debug_flags.contains(&arg.as_str()));
 
-    let client_port: Option<u16> = args.iter()
-        .find(|arg| arg.starts_with('@'))
-        .if(find(.)).find(:).after()
-        .else.and_then(|arg| arg[1..].parse().ok());
-    let IP: &str = args.iter()
-        .find(|arg| arg.starts_with('@'))
-        .if(find(.))
-        .and_then(|arg| arg[1..].till(:).parse().ok());
-    if let Some(port) = client_port {
-        client::run(IP, port, debug);
+    let where_mate = args.iter().find(|arg| arg.starts_with('@'));
+
+    let (ip, port): (&str, Option<u16>) = if let Some(arg) = where_mate {
+        let target = &arg[1..];
+        if let Some((ip, port_str)) = target.split_once(':') {
+            (ip, port_str.parse().ok())
+        } else {
+            (LOCALHOST, target.parse().ok())
+        }
     } else {
+        (LOCALHOST, None)
+    };
+
+    if let Some(port) = port {
+
+        client::run(ip, port, debug);
+
+    } else {
+
+        let localhost_only_flags = [
+            "--localhost", "--localhost_only", "--localhostonly", "--local", "--localonly", "--local_only"
+        ];
+        let local: bool = args.iter().any(
+            |arg| localhost_only_flags.contains(&arg.as_str())
+        );
+        let ip: &str = if local { LOCALHOST } else { "0.0.0.0" };
+
         let mut port: u16 = args.iter()
             .find(|arg| arg.parse::<u16>().is_ok())
             .and_then(|arg| arg.parse().ok())
@@ -38,18 +54,12 @@ fn run() {
                 println!("No port provided, using {DEFAULT_PORT}");
                 DEFAULT_PORT
             });
-        while TcpListener::bind((IP, port)).is_err() {
+        while TcpListener::bind((ip, port)).is_err() {
             println!("Port {} is taken, trying {}", port, port + 1);
             port += 1;
         }
-        let localhost_only_flags = [
-            "--localhost", "--localhost_only", "--localhostonly", "--local", "--localonly", "--local_only"
-        ];
-        let local: bool = args.iter().any(
-            |arg| localhost_only_flags.contains(&arg.as_str())
-        );
-        let IP: &str = if local { LOCALHOST } else { "0.0.0.0" };
-        server::run(IP, port, debug);
+
+        server::run(ip, port, debug);
     }
 }
 
