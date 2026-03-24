@@ -5,7 +5,7 @@ use chacha20poly1305::{
 use rand::RngCore;
 use rand::rngs::OsRng;
 use std::net::TcpStream;
-use tokio::io::AsyncWriteExt;
+use std::io::Write;
 //nonce=number only once
 const KEY_SIZE: usize = 32;
 pub const NONCE_SIZE: usize = 12;

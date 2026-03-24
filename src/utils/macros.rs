@@ -67,7 +67,7 @@ macro_rules! define_args_and_dispatchers {
 
             pub fn dispatch_server_traffic(
                 arg_name: &str,
-                msg_bytes: &[u8],
+                msg: &str,
             ) {
                 match arg_name {
                     $(
@@ -75,7 +75,7 @@ macro_rules! define_args_and_dispatchers {
                             if let Err(e) = 
 
                                 crate::traffic::$name::server(
-                                    msg_bytes
+                                    msg
                                 ) {
 
                                     eprintln!(

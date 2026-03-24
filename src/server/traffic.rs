@@ -53,7 +53,7 @@ async fn read_decrypt_and_dispatch(
     let message = std::str::from_utf8(message_bytes)
         .map_err(|_| "Traffic message is not valid UTF-8".to_string())?;
 
-    crate::client::args::Args::dispatch_server_traffic(&arg, message_bytes);
+    crate::client::args::Args::dispatch_server_traffic(&arg, message);
 
     Ok(())
 }
