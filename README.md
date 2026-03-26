@@ -26,6 +26,7 @@ tldrify_and_install mate
 then if u have a `tldr` on ur system u can also `tldr mate` to see the docs that will be also below
 
 <br>
+
 # mate
 
 > post quantum most secure server-client TCP communications initiation implementation that openSSH uses in rust with parallel async server
