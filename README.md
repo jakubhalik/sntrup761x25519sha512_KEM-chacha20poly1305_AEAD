@@ -31,7 +31,9 @@ then if u have a `tldr` on ur system u can also `tldr mate` to see the docs that
 
 - Just run as server
 
-`mate`
+```bash
+mate
+```
 
 - Choose a port on which ur server will run
 
