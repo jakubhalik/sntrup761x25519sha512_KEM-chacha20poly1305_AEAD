@@ -90,13 +90,20 @@ mate @10.0.0.2:1024 --mess_test_without_auth "hello batman!"
 <br>
 This has only the KEM and sending a message implemented, to further implement a full on networking protocol to use for for example executive access u should obviously also implement authentication, sntrup761x25519sha512 KEM with chacha20poly1305 is just the method used so a client and server can establish a post quantum shared secret in which they are to initiate any encrypted communications that will be at each session initialized with each time newly generated shared secret
 
+<br>
+
 Docs for sntrup761x25519sha512 are something u have to google (or ask an llm) separately, I won't repeat a documentation work that is already done on the internet, but the latex math in the repo might help u in getting it
+
+<br>
+
 https://www.ietf.org/archive/id/draft-josefsson-ntruprime-ssh-02.html might explain it a little to u, but to be real with u an llm will explain it far better to u with all nuances and so u actually know what the flip it does and why
 
 
 <br>
 <br>
 It is not dangerous or anything to run this server on a public ip or whatever, as u read from the docs this is but a mating protocol (that should be used as a first step in a protocol), where the worst someone can remotely do to your server is send a 255 max char message to u that ur server terminal will print to the screen (escape chars not allowed - if someone tries to send a message that has escape chars that message will not even get passed to the println!)
+
+<br>
 
 Sorry for bad grammar in docs, not into that stuff
 
