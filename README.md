@@ -45,6 +45,7 @@ mate 1024
 
 - Server default runs on 0.0.0.0:<port>, so if ur firewall allows connection to that port, anyone on ur network (LAN unless you are port forwarding a public ip with the router or something) can mate 
 
+<br>
 - Run the server in a way so only ur local machine can mate the port
 
 ```bash
