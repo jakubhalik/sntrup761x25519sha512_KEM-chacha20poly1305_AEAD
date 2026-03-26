@@ -88,8 +88,9 @@ mate @10.0.0.2:1024 --mess_test_without_auth "hello batman!"
 
 <br>
 <br>
-This has only the KEM and sending a message implemented, to further implement a full on networking protocol to use for for example executive access u should obviously also implement authentication, sntrup761x25519sha512 KEM with chacha20poly1305 is just the method used so a client and server can establish a post quantum shared secret in which they are to initiate any encrypted communications that will be at each session initialized with each time newly generated shared secret
+This has only the KEM and sending a message implemented, to further implement a full on networking protocol to use for for example executive access u should obviously also implement authentication, sntrup761x25519sha512 KEM with chacha20poly1305 is just the method used so a client and server can establish a post quantum shared secret in which they are to initiate any encrypted communications that will be at each session initialized with each time newly generated shared secret.
 
+<br>
 <br>
 
 Docs for sntrup761x25519sha512 are something u have to google (or ask an llm) separately, I won't repeat a documentation work that is already done on the internet, but the latex math in the repo might help u in getting it
